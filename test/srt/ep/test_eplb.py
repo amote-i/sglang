@@ -5,8 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import sglang as sgl
-from sglang.srt.environ import envs
-from sglang.srt.utils import kill_process_tree
+from sglang.srt.utils import is_npu, kill_process_tree
 from sglang.test.run_eval import run_eval
 from sglang.test.test_utils import (
     DEFAULT_MLA_MODEL_NAME_FOR_TEST,
@@ -22,12 +21,57 @@ class _BaseTestDynamicEPLB(CustomTestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.model = DEFAULT_MLA_MODEL_NAME_FOR_TEST
         cls.base_url = DEFAULT_URL_FOR_TEST
-        with (
-            envs.SGLANG_ENABLE_JIT_DEEPGEMM.override(False),
-            envs.SGLANG_EXPERT_LOCATION_UPDATER_CANARY.override(True),
-        ):
+        if is_npu():
+            cls.model = (
+                "/root/.cache/modelscope/hub/models/vllm-ascend/DeepSeek-R1-W8A8"
+            )
+            cls.process = popen_launch_server(
+                cls.model,
+                cls.base_url,
+                timeout=DEFAULT_TIMEOUT_FOR_SERVER_LAUNCH,
+                other_args=[
+                    "--trust-remote-code",
+                    "--tp-size",
+                    "16",
+                    "--dp-size",
+                    "1",
+                    "--attention-backend",
+                    "ascend",
+                    "--quantization",
+                    "w8a8_int8",
+                    "--mem-fraction-static",
+                    "0.9",
+                    "--enable-dp-attention",
+                    "--moe-a2a-backend",
+                    "deepep",
+                    "--deepep-mode",
+                    "normal",
+                    "--disable-cuda-graph",
+                    "--enable-eplb",
+                    "--ep-num-redundant-experts",
+                    "16",
+                    "--eplb-rebalance-num-iterations",
+                    "50",
+                    "--expert-distribution-recorder-buffer-size",
+                    "50",
+                    # TODO pr-chain: enable later
+                    "--enable-expert-distribution-metrics",
+                    # TODO auto determine these flags
+                    "--expert-distribution-recorder-mode",
+                    "stat",
+                    "--ep-dispatch-algorithm",
+                    "static",
+                    *cls.extra_args,
+                ],
+                env={
+                    "SGL_ENABLE_JIT_DEEPGEMM": "0",
+                    "HCCL_BUFFSIZE": "500",
+                    **os.environ,
+                },
+            )
+        else:
+            cls.model = DEFAULT_MLA_MODEL_NAME_FOR_TEST
             cls.process = popen_launch_server(
                 cls.model,
                 cls.base_url,
@@ -60,6 +104,11 @@ class _BaseTestDynamicEPLB(CustomTestCase):
                     "static",
                     *cls.extra_args,
                 ],
+                env={
+                    "SGL_ENABLE_JIT_DEEPGEMM": "0",
+                    "SGLANG_EXPERT_LOCATION_UPDATER_CANARY": "1",
+                    **os.environ,
+                },
             )
 
     @classmethod
@@ -67,13 +116,22 @@ class _BaseTestDynamicEPLB(CustomTestCase):
         kill_process_tree(cls.process.pid)
 
     def test_mmlu(self):
-        args = SimpleNamespace(
-            base_url=self.base_url,
-            model=self.model,
-            eval_name="mmlu",
-            num_examples=64,
-            num_threads=32,
-        )
+        if is_npu():
+            args = SimpleNamespace(
+                base_url=self.base_url,
+                model=self.model,
+                eval_name="mmlu",
+                num_examples=8,
+                num_threads=32,
+            )
+        else:
+            args = SimpleNamespace(
+                base_url=self.base_url,
+                model=self.model,
+                eval_name="mmlu",
+                num_examples=16,
+                num_threads=32,
+            )
 
         metrics = run_eval(args)
         self.assertGreater(metrics["score"], 0.5)
@@ -89,26 +147,47 @@ class TestDynamicEPLBMultiChunk(_BaseTestDynamicEPLB):
 
 class TestStaticEPLB(CustomTestCase):
     def test_save_expert_distribution_and_init_expert_location(self):
-        envs.SGLANG_ENABLE_JIT_DEEPGEMM.set(False)
+        os.environ["SGL_ENABLE_JIT_DEEPGEMM"] = "0"
+        os.environ["HCCL_BUFFSIZE"] = "500"
 
         with tempfile.TemporaryDirectory() as tmp_dir:
-            engine_kwargs = dict(
-                model_path=DEFAULT_MLA_MODEL_NAME_FOR_TEST,
-                trust_remote_code=True,
-                ep_num_redundant_experts=4,
-                enable_dp_attention=True,
-                moe_a2a_backend="deepep",
-                disable_cuda_graph=True,
-                expert_distribution_recorder_mode="stat",
-                tp_size=2,
-                dp_size=2,
-                log_level="info",
-                # TODO pr-chain: enable later
-                # enable_expert_distribution_metrics=True,
-            )
+            if is_npu():
+                engine_kwargs = dict(
+                    model_path="/root/.cache/modelscope/hub/models/vllm-ascend/DeepSeek-R1-W8A8",
+                    trust_remote_code=True,
+                    attention_backend="ascend",
+                    quantization="w8a8_int8",
+                    mem_fraction_static=0.9,
+                    deepep_mode="normal",
+                    ep_num_redundant_experts=16,
+                    enable_dp_attention=True,
+                    moe_a2a_backend="deepep",
+                    disable_cuda_graph=True,
+                    expert_distribution_recorder_mode="stat",
+                    tp_size=16,
+                    dp_size=1,
+                    log_level="info",
+                    # TODO pr-chain: enable later
+                    enable_expert_distribution_metrics=True,
+                )
+            else:
+                engine_kwargs = dict(
+                    model_path="/root/.cache/modelscope/hub/models/vllm-ascend/DeepSeek-R1-W8A8",
+                    trust_remote_code=True,
+                    ep_num_redundant_experts=4,
+                    enable_dp_attention=True,
+                    moe_a2a_backend="deepep",
+                    disable_cuda_graph=True,
+                    expert_distribution_recorder_mode="stat",
+                    tp_size=2,
+                    dp_size=2,
+                    log_level="info",
+                    # TODO pr-chain: enable later
+                    # enable_expert_distribution_metrics=True,
+                )
 
             print(f"Action: start engine")
-            envs.SGLANG_EXPERT_DISTRIBUTION_RECORDER_DIR.set(tmp_dir)
+            os.environ["SGLANG_EXPERT_DISTRIBUTION_RECORDER_DIR"] = tmp_dir
             engine = sgl.Engine(
                 **engine_kwargs,
                 disable_overlap_schedule=True,

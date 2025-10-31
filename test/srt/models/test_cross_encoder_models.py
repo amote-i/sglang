@@ -5,16 +5,23 @@ import unittest
 import torch
 from transformers import AutoConfig, AutoTokenizer
 
+from sglang.srt.utils import is_npu
 from sglang.test.runners import TEST_RERANK_QUERY_DOCS, HFRunner, SRTRunner
 from sglang.test.test_utils import CustomTestCase, is_in_ci
 
-MODELS = [
-    ("cross-encoder/ms-marco-MiniLM-L6-v2", 1, 1e-2),
-    ("BAAI/bge-reranker-v2-m3", 1, 1e-2),
-]
-ATTENTION_BACKEND = ["torch_native", "triton"]
-
-TORCH_DTYPES = [torch.float32]
+if is_npu():
+    MODELS = [
+        ("/root/.cache/modelscope/hub/models/BAAI/bge-reranker-v2-m3", 1, 15),
+    ]
+    ATTENTION_BACKEND = ["ascend"]
+    TORCH_DTYPES = [torch.float16]
+else:
+    MODELS = [
+        ("cross-encoder/ms-marco-MiniLM-L6-v2", 1, 1e-2),
+        ("BAAI/bge-reranker-v2-m3", 1, 1e-2),
+    ]
+    ATTENTION_BACKEND = ["torch_native", "triton"]
+    TORCH_DTYPES = [torch.float32]
 
 
 class TestCrossEncoderModels(CustomTestCase):
@@ -52,6 +59,8 @@ class TestCrossEncoderModels(CustomTestCase):
 
         for i in range(len(srt_scores)):
             score_difference = abs(hf_scores[i] - srt_scores[i])
+            print("score_difference", score_difference)
+            print("score_tolerance", score_tolerance)
 
             assert (
                 score_difference < score_tolerance

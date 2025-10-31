@@ -1,0 +1,367 @@
+name: Daily Build Test Innersource (Ascend NPU)
+
+on:
+  schedule:
+    - cron: "0 4,16 * * *" # Trigger the daily build pipeline every 12 hours.
+  workflow_dispatch:
+  # pull_request:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - ".github/workflows/daily-build-test-npu-innersource.yml"
+
+concurrency:
+  group: daily-build-test-npu-innersource-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  ### Building images from innersource
+  build-innersource-image:
+    if: github.repository == 'Ascend/sglang'
+    uses: ./.github/workflows/release-docker-ascend-nightly-innersource.yml
+    secrets: inherit
+
+  ### Building x86 images from innersource
+  build-innersource-x86-image:
+    if: github.repository == 'Ascend/sglang'
+    uses: ./.github/workflows/release-docker-ascend-nightly-innersource-x86.yml
+    secrets: inherit
+
+  daily-innersource-1-ascend-a3:
+    needs: [ build-innersource-image ]
+    if: ${{ needs.build-innersource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
+    runs-on: linux-aarch64-a3-2
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [0, 1, 2, 3, 4, 5]
+    container:
+      image: ${{ vars.REGISTRY_HK }}/base_image/ascend-ci/sglang:main
+    steps:
+      - name: Pre-config git access token
+        run: |
+          # as we use a proxy but checkout@v4 only set basic auth header for github.com
+          # so we set the extraheader manually
+          TOKEN=`echo -n "x-access-token:${{ secrets.ADMIN_PAT }}"|base64`
+          git config --global http.https://gh-proxy.test.osinfra.cn/.extraheader "AUTHORIZATION: basic $TOKEN"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github
+            scripts
+            test
+
+      - name: Copy dataset
+        run: |
+          # copy required file from our daily cache
+          cp ~/.cache/modelscope/hub/datasets/otavia/ShareGPT_Vicuna_unfiltered/ShareGPT_V3_unfiltered_cleaned_split.json /tmp
+          # copy download through proxy
+          curl -o /tmp/test.jsonl -L https://gh-proxy.test.osinfra.cn/https://raw.githubusercontent.com/openai/grade-school-math/master/grade_school_math/data/test.jsonl
+
+      - name: Print Log Information
+        run: |
+          bash scripts/ci/log_print.sh
+
+      - name: Run test
+        timeout-minutes: 60
+        env:
+          SGLANG_USE_MODELSCOPE: true
+          SGLANG_IS_IN_CI: true
+          HF_ENDPOINT: https://hf-mirror.com
+          TORCH_EXTENSIONS_DIR: /tmp/torch_extensions
+          STREAMS_PER_DEVICE: 32
+        run: |
+          pip install sentence_transformers accelerate
+          cd test/srt
+          python3 run_suite.py --suite daily-test-1-ascend-npu --timeout-per-file 3600 --auto-partition-id ${{ matrix.part }} --auto-partition-size 6
+
+  daily-innersource-2-ascend-a3:
+    needs: [ build-innersource-image ]
+    if: ${{ needs.build-innersource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
+    runs-on: linux-aarch64-a3-2
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [0, 1, 2]
+    container:
+      image: ${{ vars.REGISTRY_HK }}/base_image/ascend-ci/sglang:main
+    steps:
+      - name: Pre-config git access token
+        run: |
+          # as we use a proxy but checkout@v4 only set basic auth header for github.com
+          # so we set the extraheader manually
+          TOKEN=`echo -n "x-access-token:${{ secrets.ADMIN_PAT }}"|base64`
+          git config --global http.https://gh-proxy.test.osinfra.cn/.extraheader "AUTHORIZATION: basic $TOKEN"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github
+            scripts
+            test
+
+      - name: Copy dataset
+        run: |
+          # copy required file from our daily cache
+          cp ~/.cache/modelscope/hub/datasets/otavia/ShareGPT_Vicuna_unfiltered/ShareGPT_V3_unfiltered_cleaned_split.json /tmp
+          # copy download through proxy
+          curl -o /tmp/test.jsonl -L https://gh-proxy.test.osinfra.cn/https://raw.githubusercontent.com/openai/grade-school-math/master/grade_school_math/data/test.jsonl
+
+      - name: Print Log Information
+        run: |
+          bash scripts/ci/log_print.sh
+
+      - name: Run test
+        timeout-minutes: 60
+        env:
+          SGLANG_USE_MODELSCOPE: true
+          SGLANG_IS_IN_CI: true
+          HF_ENDPOINT: https://hf-mirror.com
+          TORCH_EXTENSIONS_DIR: /tmp/torch_extensions
+          STREAMS_PER_DEVICE: 32
+        run: |
+          pip install accelerate
+          cd test/srt
+          python3 run_suite.py --suite daily-test-2-ascend-npu --timeout-per-file 3600 --auto-partition-id ${{ matrix.part }} --auto-partition-size 3
+
+  daily-innersource-4-ascend-a3:
+    needs: [ build-innersource-image ]
+    if: ${{ needs.build-innersource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
+    runs-on: linux-aarch64-a3-4
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [0, 1, 2]
+    container:
+      image: ${{ vars.REGISTRY_HK }}/base_image/ascend-ci/sglang:main
+    steps:
+      - name: Pre-config git access token
+        run: |
+          # as we use a proxy but checkout@v4 only set basic auth header for github.com
+          # so we set the extraheader manually
+          TOKEN=`echo -n "x-access-token:${{ secrets.ADMIN_PAT }}"|base64`
+          git config --global http.https://gh-proxy.test.osinfra.cn/.extraheader "AUTHORIZATION: basic $TOKEN"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github
+            scripts
+            test
+
+      - name: Copy dataset
+        run: |
+          # copy required file from our daily cache
+          cp ~/.cache/modelscope/hub/datasets/otavia/ShareGPT_Vicuna_unfiltered/ShareGPT_V3_unfiltered_cleaned_split.json /tmp
+          # copy download through proxy
+          curl -o /tmp/test.jsonl -L https://gh-proxy.test.osinfra.cn/https://raw.githubusercontent.com/openai/grade-school-math/master/grade_school_math/data/test.jsonl
+
+      - name: Print Log Information
+        run: |
+          bash scripts/ci/log_print.sh
+
+      - name: Run test
+        timeout-minutes: 60
+        env:
+          SGLANG_USE_MODELSCOPE: true
+          SGLANG_IS_IN_CI: true
+          HF_ENDPOINT: https://hf-mirror.com
+          TORCH_EXTENSIONS_DIR: /tmp/torch_extensions
+          STREAMS_PER_DEVICE: 32
+        run: |
+          hf download lmms-lab/MMMU --repo-type dataset
+          pip install sentence_transformers torchaudio torch_npu
+          pip install protobuf==3.20 zss pre-commit wandb>=0.16.0 tenacity==8.3.0 loguru openpyxl latex2sympy2 zstandard transformers-stream-generator tqdm-multiprocess pycocoevalcap
+          pip install yt-dlp sentencepiece==0.1.99 nltk av ftfy sqlitedict==2.1.0 sacrebleu>=1.5.0 pytablewriter peft==0.2.0 black==24.1.0 isort==5.13.2 peft>=0.2.0 accelerate>=0.29.1
+          pip install jsonlines httpx==0.23.3 evaluate>=0.4.0 datasets==2.16.1 numexpr xgrammar==0.1.18 numpy==1.26.4
+          git clone --branch v0.3.3 --depth 1 https://github.com/EvolvingLMMs-Lab/lmms-eval.git
+          cd ./lmms-eval
+          nohup pip install . > lmmslog.txt 2>&1 &
+          sleep 120
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          cd ../
+          cd test/srt
+          python3 run_suite.py --suite daily-test-4-ascend-npu --timeout-per-file 3600 --auto-partition-id ${{ matrix.part }} --auto-partition-size 3
+
+  daily-innersource-8-ascend-a3:
+    needs: [ build-innersource-image ]
+    if: ${{ needs.build-innersource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
+    runs-on: linux-aarch64-a3-8
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [0, 1]
+    container:
+      image: ${{ vars.REGISTRY_HK }}/base_image/ascend-ci/sglang:main
+    steps:
+      - name: Pre-config git access token
+        run: |
+          # as we use a proxy but checkout@v4 only set basic auth header for github.com
+          # so we set the extraheader manually
+          TOKEN=`echo -n "x-access-token:${{ secrets.GITHUB_TOKEN}}"|base64`
+          git config --global http.https://gh-proxy.test.osinfra.cn/.extraheader "AUTHORIZATION: basic $TOKEN"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy dataset
+        run: |
+          # copy required file from our daily cache
+          cp ~/.cache/modelscope/hub/datasets/otavia/ShareGPT_Vicuna_unfiltered/ShareGPT_V3_unfiltered_cleaned_split.json /tmp
+          # copy download through proxy
+          curl -o /tmp/test.jsonl -L https://gh-proxy.test.osinfra.cn/https://raw.githubusercontent.com/openai/grade-school-math/master/grade_school_math/data/test.jsonl
+
+      - name: Print Log Information
+        run: |
+          bash scripts/ci/log_print.sh
+
+      - name: Run test
+        timeout-minutes: 60
+        env:
+          SGLANG_USE_MODELSCOPE: true
+          SGLANG_IS_IN_CI: true
+          HF_ENDPOINT: https://hf-mirror.com
+          TORCH_EXTENSIONS_DIR: /tmp/torch_extensions
+        run: |
+          hf download lmms-lab/MMMU --repo-type dataset
+          pip install sentence_transformers torchaudio torch_npu
+          pip install protobuf==3.20 zss pre-commit wandb>=0.16.0 tenacity==8.3.0 loguru openpyxl latex2sympy2 zstandard transformers-stream-generator tqdm-multiprocess pycocoevalcap
+          pip install yt-dlp sentencepiece==0.1.99 nltk av ftfy sqlitedict==2.1.0 sacrebleu>=1.5.0 pytablewriter peft==0.2.0 black==24.1.0 isort==5.13.2 peft>=0.2.0 accelerate>=0.29.1
+          pip install jsonlines httpx==0.23.3 evaluate>=0.4.0 datasets==2.16.1 numexpr xgrammar==0.1.18 numpy==1.26.4
+          git clone --branch v0.3.3 --depth 1 https://github.com/EvolvingLMMs-Lab/lmms-eval.git
+          cd ./lmms-eval
+          nohup pip install . > lmmslog.txt 2>&1 &
+          sleep 120
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          cd ../
+          cd test/srt
+          python3 run_suite.py --suite daily-test-8-ascend-npu --timeout-per-file 3600 --auto-partition-id ${{ matrix.part }} --auto-partition-size 2
+
+  daily-innersource-16-ascend-a3:
+    needs: [ build-innersource-image ]
+    if: ${{ needs.build-innersource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
+    runs-on: linux-aarch64-a3-16
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [0, 1, 2]
+    container:
+      image: ${{ vars.REGISTRY_HK }}/base_image/ascend-ci/sglang:main
+    steps:
+      - name: Pre-config git access token
+        run: |
+          # as we use a proxy but checkout@v4 only set basic auth header for github.com
+          # so we set the extraheader manually
+          TOKEN=`echo -n "x-access-token:${{ secrets.GITHUB_TOKEN}}"|base64`
+          git config --global http.https://gh-proxy.test.osinfra.cn/.extraheader "AUTHORIZATION: basic $TOKEN"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy dataset
+        run: |
+          # copy required file from our daily cache
+          cp ~/.cache/modelscope/hub/datasets/otavia/ShareGPT_Vicuna_unfiltered/ShareGPT_V3_unfiltered_cleaned_split.json /tmp
+          # copy download through proxy
+          curl -o /tmp/test.jsonl -L https://gh-proxy.test.osinfra.cn/https://raw.githubusercontent.com/openai/grade-school-math/master/grade_school_math/data/test.jsonl
+
+      - name: Print Log Information
+        run: |
+          bash scripts/ci/log_print.sh
+
+      - name: Run test
+        timeout-minutes: 180
+        env:
+          SGLANG_USE_MODELSCOPE: true
+          SGLANG_IS_IN_CI: true
+          HF_ENDPOINT: https://hf-mirror.com
+          TORCH_EXTENSIONS_DIR: /tmp/torch_extensions
+        run: |
+          hf download lmms-lab/MMMU --repo-type dataset
+          pip install sentence_transformers torchaudio torch_npu
+          pip install protobuf==3.20 zss pre-commit wandb>=0.16.0 tenacity==8.3.0 loguru openpyxl latex2sympy2 zstandard transformers-stream-generator tqdm-multiprocess pycocoevalcap
+          pip install yt-dlp sentencepiece==0.1.99 nltk av ftfy sqlitedict==2.1.0 sacrebleu>=1.5.0 pytablewriter peft==0.2.0 black==24.1.0 isort==5.13.2 peft>=0.2.0 accelerate>=0.29.1
+          pip install jsonlines httpx==0.23.3 evaluate>=0.4.0 datasets==2.16.1 numexpr xgrammar==0.1.18 numpy==1.26.4
+          git clone --branch v0.3.3 --depth 1 https://github.com/EvolvingLMMs-Lab/lmms-eval.git
+          cd ./lmms-eval
+          nohup pip install . > lmmslog.txt 2>&1 &
+          sleep 120
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          cd ../
+          cd test/srt
+          python3 run_suite.py --suite daily-test-16-ascend-npu --timeout-per-file 7200 --auto-partition-id ${{ matrix.part }} --auto-partition-size 3
+
+  # daily-innersource-ascend-npu-deepep-k8s:
+  #   needs: [ build-innersource-image ]
+  #   if: ${{ needs.build-innersource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
+  #   runs-on: linux-amd64-cpu-0
+  #   container:
+  #     image: swr.cn-southwest-2.myhuaweicloud.com/base_image/ascend-ci/cann:8.2.rc1-a3-ubuntu22.04-py3.11
+  #   steps:
+  #     - name: Pre-config git access token
+  #       run: |
+  #         # as we use a proxy but checkout@v4 only set basic auth header for github.com
+  #         # so we set the extraheader manually
+  #         TOKEN=`echo -n "x-access-token:${{ secrets.GITHUB_TOKEN }}"|base64`
+  #         git config --global http.https://gh-proxy.test.osinfra.cn/.extraheader "AUTHORIZATION: basic $TOKEN"
+
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+
+  #     - name: Run test
+  #       timeout-minutes: 60
+  #       env:
+  #         SGLANG_USE_MODELSCOPE: true
+  #         SGLANG_IS_IN_CI: true
+  #         HF_ENDPOINT: https://hf-mirror.com
+  #       run: |
+  #         pip3 install -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple kubernetes
+  #         cp /data/.cache/kubectl /usr/local/sbin/
+  #         export KUBECONFIG=/data/.cache/kb.yaml
+  #         cd test/srt/ascend_k8s
+  #         while true; do
+  #           if kubectl get po -A | grep -q "sglang"; then
+  #             kubectl delete -f deepep.yaml --ignore-not-found=true || true
+  #             echo "Found exist sglang job, sleeping for 30 seconds..."
+  #             sleep 30
+  #           else
+  #             echo "No exist sglang job, start deepep case..."
+  #             break
+  #           fi
+  #         done
+  #         rm -rf /data/.cache/sglang/
+  #         cp -r /__w/sglang/sglang /data/.cache/
+  #         python3 -u run_ascend_ci.py
+  #         kubectl delete -f deepep.yaml --ignore-not-found=true || true
+
+  bulid-test-npu-finish:
+    if: always()
+    needs:
+      - daily-innersource-1-ascend-a3
+      - daily-innersource-2-ascend-a3
+      - daily-innersource-4-ascend-a3
+      - daily-innersource-8-ascend-a3
+      - daily-innersource-16-ascend-a3
+      # - daily-innersource-ascend-npu-deepep-k8s
+    runs-on: linux-amd64-cpu-1
+    container:
+      image: docker.m.daocloud.io/ubuntu:22.04
+    steps:
+       - name: Check all dependent job statuses
+         run: |
+           #!/bin/sh
+           results="${{ join(needs.*.result, ' ') }}"
+           set -- $results
+           for result in "$@"; do
+             if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+               echo "Job failed with result: $result"
+               exit 1
+             fi
+           done
+           echo "All jobs completed successfully"
+           exit 0

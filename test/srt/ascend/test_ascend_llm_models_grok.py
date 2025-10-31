@@ -44,7 +44,7 @@ class TestGrok(CustomTestCase):
             os.environ["USE_VLLM_CUSTOM_ALLREDUCE"] = "1"
             os.environ["HCCL_EXEC_TIMEOUT"] = "200"
             os.environ["STREAMS_PER_DEVICE"] = "32"
-            os.environ["SGLANG_ENABLE_TORCH_COMILE"] = "1"
+            os.environ["SGLANG_ENABLE_TORCH_COMPILE"] = "1"
             os.environ["AUTO_USE_UC_MEMORY"] = "0"
             os.environ["P2P_HCCL_BUFFSIZE"] = "20"
             env = os.environ.copy()

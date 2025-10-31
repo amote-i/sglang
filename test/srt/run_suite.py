@@ -442,6 +442,20 @@ suite_ascend = {
         TestFile("openai_server/validation/test_openai_server_ignore_eos.py", 400),
         TestFile("test_abort.py", 400),
         TestFile("openai_server/validation/test_matched_stop.py", 400),
+        TestFile("test_server_args.py", 400),
+        TestFile("test_start_profile.py", 400),
+        TestFile("openai_server/features/test_reasoning_content.py", 400),
+        TestFile("ascend/test_ascend_sleep_on_idle.py", 400),
+        TestFile("ascend/test_ascend_bucket_time_to_first_token.py", 400),
+        TestFile("ascend/test_ascend_bucket_inter_token_latency.py", 400),
+        TestFile("ascend/test_ascend_bucket_e2e_request_latency.py", 400),
+        TestFile("ascend/test_ascend_collect_tokens_histogram.py", 400),
+        TestFile("ascend/test_ascend_lora_target_modules.py", 400),
+        TestFile("test_function_call_parser.py", 400),
+        TestFile("test_utils_update_weights.py", 400),
+        TestFile("ascend/test_ascend_enable_profile_cuda_graph.py", 400),
+        TestFile("ascend/test_ascend_enable_request_time_stats_logging.py", 400),
+        TestFile("ascend/test_ascend_tbo_token_distribution_threshold.py", 400),
     ],
     "daily-test-2-ascend-npu": [
         TestFile("ascend/test_ascend_tp2_bf16.py", 400),
@@ -474,6 +488,7 @@ suite_ascend = {
     "daily-test-8-ascend-npu": [
         TestFile("ascend/test_vlm_models_glm_4_5v.py", 400),
         TestFile("ascend/test_vlm_models_glm_4_1v_9b_thinking.py", 400),
+        TestFile("ascend/test_ascend_mm_attention_backend.py", 400),
     ],
     "daily-test-16-ascend-npu": [
         TestFile("ascend/test_ascend_disable_chunked_prefix_cache.py", 400),

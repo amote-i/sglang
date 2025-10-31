@@ -49,6 +49,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: 'upstream/251031'
           sparse-checkout: |
             .github
             scripts
@@ -99,6 +100,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: 'upstream/251031'
           sparse-checkout: |
             .github
             scripts
@@ -149,6 +151,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: 'upstream/251031'
           sparse-checkout: |
             .github
             scripts
@@ -208,6 +211,8 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: 'upstream/251031'
 
       - name: Copy dataset
         run: |
@@ -262,6 +267,8 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: 'upstream/251031'
 
       - name: Copy dataset
         run: |

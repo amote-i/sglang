@@ -79,7 +79,7 @@ class TestGpuId(CustomTestCase):
         print(result2)
         for i in result2:
             if i != "":
-                assert int(i) > 50000
+                self.assertGreater(int(i), 50000)
 
 
 if __name__ == "__main__":

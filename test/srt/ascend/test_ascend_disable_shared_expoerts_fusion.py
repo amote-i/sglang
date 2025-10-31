@@ -36,7 +36,7 @@ class TestDisableSharedExpertsFusion(CustomTestCase):
                 "0.9",
                 "--quantization",
                 "w8a8_int8",
-                "tp-size",
+                "--tp-size",
                 "16",
             ]
         )

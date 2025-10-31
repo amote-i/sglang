@@ -15,7 +15,7 @@ import unittest
 import openai
 import requests
 
-from sglang.srt.utils import kill_process_tree
+from sglang.srt.utils import is_npu, kill_process_tree
 from sglang.test.test_utils import (
     DEFAULT_REASONING_MODEL_NAME_FOR_TEST,
     DEFAULT_TIMEOUT_FOR_SERVER_LAUNCH,
@@ -28,7 +28,25 @@ from sglang.test.test_utils import (
 class TestReasoningContentAPI(CustomTestCase):
     @classmethod
     def setUpClass(cls):
-        cls.model = DEFAULT_REASONING_MODEL_NAME_FOR_TEST
+        cls.model = (
+            "/root/.cache/modelscope/hub/models/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
+            if is_npu()
+            else DEFAULT_REASONING_MODEL_NAME_FOR_TEST
+        )
+        other_args = (
+            [
+                "--reasoning-parser",
+                "deepseek-r1",
+                "--attention-backend",
+                "ascend",
+                "--disable-cuda-graph",
+            ]
+            if is_npu()
+            else [
+                "--reasoning-parser",
+                "deepseek-r1",
+            ]
+        )
         cls.base_url = DEFAULT_URL_FOR_TEST
         cls.api_key = "sk-1234"
         cls.process = popen_launch_server(
@@ -36,10 +54,7 @@ class TestReasoningContentAPI(CustomTestCase):
             cls.base_url,
             timeout=DEFAULT_TIMEOUT_FOR_SERVER_LAUNCH,
             api_key=cls.api_key,
-            other_args=[
-                "--reasoning-parser",
-                "deepseek-r1",
-            ],
+            other_args=other_args,
         )
         cls.base_url += "/v1"
 
@@ -185,7 +200,20 @@ class TestReasoningContentAPI(CustomTestCase):
 class TestReasoningContentWithoutParser(CustomTestCase):
     @classmethod
     def setUpClass(cls):
-        cls.model = DEFAULT_REASONING_MODEL_NAME_FOR_TEST
+        cls.model = (
+            "/root/.cache/modelscope/hub/models/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
+            if is_npu()
+            else DEFAULT_REASONING_MODEL_NAME_FOR_TEST
+        )
+        other_args = (
+            [
+                "--attention-backend",
+                "ascend",
+                "--disable-cuda-graph",
+            ]
+            if is_npu()
+            else []
+        )
         cls.base_url = DEFAULT_URL_FOR_TEST
         cls.api_key = "sk-1234"
         cls.process = popen_launch_server(
@@ -193,7 +221,7 @@ class TestReasoningContentWithoutParser(CustomTestCase):
             cls.base_url,
             timeout=DEFAULT_TIMEOUT_FOR_SERVER_LAUNCH,
             api_key=cls.api_key,
-            other_args=[],  # No reasoning parser
+            other_args=other_args,  # No reasoning parser
         )
         cls.base_url += "/v1"
 

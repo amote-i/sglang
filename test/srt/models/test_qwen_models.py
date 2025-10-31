@@ -55,7 +55,7 @@ class TestQwen2(CustomTestCase):
         self.assertGreater(metrics["accuracy"], 0.78)
 
 
-@unittest.skipIf(is_npu(), "NPU does npt support FP8.")
+@unittest.skipIf(is_npu(), "NPU does not support FP8.")
 class TestQwen2FP8(CustomTestCase):
     @classmethod
     def setUpClass(cls):

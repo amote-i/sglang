@@ -9,7 +9,11 @@ from transformers import AutoModelForCausalLM
 
 from sglang.srt.entrypoints.engine import Engine
 from sglang.srt.weight_sync.utils import update_weights
-from sglang.test.test_utils import DEFAULT_SMALL_MODEL_NAME_FOR_TEST
+from sglang.test.test_utils import DEFAULT_SMALL_MODEL_NAME_FOR_TEST, is_npu
+
+DEFAULT_SMALL_MODEL_NAME_FOR_TEST_NPU = (
+    "/root/.cache/modelscope/hub/models/LLM-Research/Llama-3.2-1B-Instruct"
+)
 
 
 class AsyncEngine(Engine):
@@ -66,9 +70,14 @@ class TestUtilsUpdateWeights(unittest.TestCase):
 
         if not dist.is_initialized():
             try:
-                dist.init_process_group(
-                    backend="nccl" if torch.cuda.is_available() else "gloo"
-                )
+                if is_npu():
+                    dist.init_process_group(
+                        backend="nccl" if torch.npu.is_available() else "gloo"
+                    )
+                else:
+                    dist.init_process_group(
+                        backend="nccl" if torch.cuda.is_available() else "gloo"
+                    )
             except Exception as e:
                 raise unittest.SkipTest(
                     f"Could not initialize distributed backend: {e}"
@@ -77,9 +86,12 @@ class TestUtilsUpdateWeights(unittest.TestCase):
         cls.rank = dist.get_rank()
         cls.world_size = dist.get_world_size()
 
-        if torch.cuda.is_available():
-            torch.cuda.set_device(cls.rank % torch.cuda.device_count())
-
+        if is_npu():
+            if torch.npu.is_available():
+                torch.npu.set_device(cls.rank % torch.npu.device_count())
+        else:
+            if torch.cuda.is_available():
+                torch.cuda.set_device(cls.rank % torch.cuda.device_count())
         # Set up environment variables
         os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
         os.environ["NCCL_CUMEM_ENABLE"] = "0"
@@ -91,7 +103,11 @@ class TestUtilsUpdateWeights(unittest.TestCase):
         """Setup test engine"""
         if cls.rank == 0:
             cls.engine = AsyncEngine(
-                model_path=DEFAULT_SMALL_MODEL_NAME_FOR_TEST,
+                model_path=(
+                    DEFAULT_SMALL_MODEL_NAME_FOR_TEST_NPU
+                    if is_npu()
+                    else DEFAULT_SMALL_MODEL_NAME_FOR_TEST
+                ),
                 dtype="bfloat16",
                 mem_fraction_static=0.3,
                 enable_memory_saver=True,
@@ -106,12 +122,18 @@ class TestUtilsUpdateWeights(unittest.TestCase):
         """Load test model"""
         try:
             cls.model = AutoModelForCausalLM.from_pretrained(
-                DEFAULT_SMALL_MODEL_NAME_FOR_TEST,
+                (
+                    DEFAULT_SMALL_MODEL_NAME_FOR_TEST_NPU
+                    if is_npu()
+                    else DEFAULT_SMALL_MODEL_NAME_FOR_TEST
+                ),
                 device_map="cpu",
                 trust_remote_code=True,
                 low_cpu_mem_usage=True,
                 torch_dtype=(
-                    torch.float16 if torch.cuda.is_available() else torch.float32
+                    torch.float16
+                    if torch.cuda.is_available() or torch.npu.is_available()
+                    else torch.float32
                 ),
             )
         except Exception as e:
@@ -120,13 +142,18 @@ class TestUtilsUpdateWeights(unittest.TestCase):
     @classmethod
     def setup_device_mesh(cls):
         """Create device mesh for testing"""
-        if not torch.cuda.is_available():
+        if not (torch.cuda.is_available() or torch.npu.is_available()):
             raise unittest.SkipTest("CUDA not available for device mesh")
 
         cls.device_mesh_key = "tp"
-        cls.mesh = init_device_mesh(
-            "cuda", (cls.world_size,), mesh_dim_names=(cls.device_mesh_key,)
-        )
+        if is_npu():
+            cls.mesh = init_device_mesh(
+                "npu", (cls.world_size,), mesh_dim_names=(cls.device_mesh_key,)
+            )
+        else:
+            cls.mesh = init_device_mesh(
+                "cuda", (cls.world_size,), mesh_dim_names=(cls.device_mesh_key,)
+            )
 
     def create_test_params_batch(self, model, num_params=64):
         """Create a batch of test parameters from the model"""

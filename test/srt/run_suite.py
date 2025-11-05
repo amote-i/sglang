@@ -499,7 +499,10 @@ suite_ascend = {
         TestFile("ascend/test_ascend_eplb_algorithm.py", 400),
         TestFile("ascend/test_ascend_llm_models_grok.py", 400),
         TestFile("ascend/test_ascend_llm_models_XVERSE.py", 400),
-    ],    
+    ],
+    "pr-test-npu-innersource-k8s": [
+        TestFile("ascend_k8s/test_ascend_disaggregation_deepep_k8s_2p1d.py", 400),
+    ],
 }
 
 suites.update(suite_amd)

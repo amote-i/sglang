@@ -178,7 +178,7 @@ jobs:
           STREAMS_PER_DEVICE: 32
         run: |
           hf download lmms-lab/MMMU --repo-type dataset
-          pip install sentence_transformers torchaudio torch_npu
+          pip install sentence_transformers torchaudio==2.6.0 torch_npu==2.6.0
           pip install protobuf==3.20 zss pre-commit wandb>=0.16.0 tenacity==8.3.0 loguru openpyxl latex2sympy2 zstandard transformers-stream-generator tqdm-multiprocess pycocoevalcap
           pip install yt-dlp sentencepiece==0.1.99 nltk av ftfy sqlitedict==2.1.0 sacrebleu>=1.5.0 pytablewriter peft==0.2.0 black==24.1.0 isort==5.13.2 peft>=0.2.0 accelerate>=0.29.1
           pip install jsonlines httpx==0.23.3 evaluate>=0.4.0 datasets==2.16.1 numexpr xgrammar==0.1.18 numpy==1.26.4
@@ -234,7 +234,7 @@ jobs:
           TORCH_EXTENSIONS_DIR: /tmp/torch_extensions
         run: |
           hf download lmms-lab/MMMU --repo-type dataset
-          pip install sentence_transformers torchaudio torch_npu
+          pip install sentence_transformers torchaudio==2.6.0 torch_npu==2.6.0
           pip install protobuf==3.20 zss pre-commit wandb>=0.16.0 tenacity==8.3.0 loguru openpyxl latex2sympy2 zstandard transformers-stream-generator tqdm-multiprocess pycocoevalcap
           pip install yt-dlp sentencepiece==0.1.99 nltk av ftfy sqlitedict==2.1.0 sacrebleu>=1.5.0 pytablewriter peft==0.2.0 black==24.1.0 isort==5.13.2 peft>=0.2.0 accelerate>=0.29.1
           pip install jsonlines httpx==0.23.3 evaluate>=0.4.0 datasets==2.16.1 numexpr xgrammar==0.1.18 numpy==1.26.4
@@ -290,7 +290,7 @@ jobs:
           TORCH_EXTENSIONS_DIR: /tmp/torch_extensions
         run: |
           hf download lmms-lab/MMMU --repo-type dataset
-          pip install sentence_transformers torchaudio torch_npu
+          pip install sentence_transformers torchaudio==2.6.0 torch_npu==2.6.0
           pip install protobuf==3.20 zss pre-commit wandb>=0.16.0 tenacity==8.3.0 loguru openpyxl latex2sympy2 zstandard transformers-stream-generator tqdm-multiprocess pycocoevalcap
           pip install yt-dlp sentencepiece==0.1.99 nltk av ftfy sqlitedict==2.1.0 sacrebleu>=1.5.0 pytablewriter peft==0.2.0 black==24.1.0 isort==5.13.2 peft>=0.2.0 accelerate>=0.29.1
           pip install jsonlines httpx==0.23.3 evaluate>=0.4.0 datasets==2.16.1 numexpr xgrammar==0.1.18 numpy==1.26.4
@@ -346,6 +346,47 @@ jobs:
   #         python3 -u run_ascend_ci.py
   #         kubectl delete -f deepep.yaml --ignore-not-found=true || true
 
+  daily-innersource-k8s:
+    if: ${{ github.repository == 'Ascend/sglang' || github.event_name == 'pull_request' }}
+    runs-on: linux-amd64-cpu-0
+    container:
+      image: swr.cn-southwest-2.myhuaweicloud.com/base_image/ascend-ci/cann:8.2.rc1-a3-ubuntu22.04-py3.11
+    steps:
+      - name: Pre-config git access token
+        run: |
+          # as we use a proxy but checkout@v4 only set basic auth header for github.com
+          # so we set the extraheader manually
+          TOKEN=`echo -n "x-access-token:${{ secrets.GITHUB_TOKEN }}"|base64`
+          git config --global http.https://gh-proxy.test.osinfra.cn/.extraheader "AUTHORIZATION: basic $TOKEN"
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Run test
+        timeout-minutes: 600
+        env:
+          SGLANG_USE_MODELSCOPE: true
+          SGLANG_IS_IN_CI: true
+          HF_ENDPOINT: https://hf-mirror.com
+        run: |
+          pip3 install -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple kubernetes
+          cp /data/.cache/kubectl /usr/local/sbin/
+          export KUBECONFIG=/data/.cache/kb.yaml
+          cd test/srt/ascend_k8s
+          while true; do
+            kubectl delete -f deepep.yaml --ignore-not-found=true || true
+            if kubectl get po -A | grep -q "mindx-dls-test-sglang"; then
+              kubectl delete -f deepep.yaml --ignore-not-found=true || true
+              echo "Found exist sglang job, sleeping for 30 seconds..."
+              sleep 30
+            else
+              echo "No exist sglang job, start deepep case..."
+              break
+            fi
+          done
+          rm -rf /data/.cache/sglang/
+          cp -r /__w/sglang/sglang /data/.cache/
+          python3 -u run_ascend_ci.py
+          kubectl delete -f deepep.yaml --ignore-not-found=true || true
+
   bulid-test-npu-finish:
     if: always()
     needs:
@@ -355,6 +396,7 @@ jobs:
       - daily-innersource-8-ascend-a3
       - daily-innersource-16-ascend-a3
       # - daily-innersource-ascend-npu-deepep-k8s
+      - daily-innersource-k8s
     runs-on: linux-amd64-cpu-1
     container:
       image: docker.m.daocloud.io/ubuntu:22.04

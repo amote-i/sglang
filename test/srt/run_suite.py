@@ -360,10 +360,7 @@ suite_ascend = {
         TestFile("ascend/test_ascend_mla_w8a8int8.py", 400),
         TestFile("ascend/test_ascend_tp4_bf16.py", 400),
     ],
-    "per-commit-16-ascend-a3": [
-        TestFile("ascend/test_ascend_deepep.py", 400),
-        TestFile("ascend/test_ascend_deepseek_mtp.py", 400),
-    ],
+    "per-commit-16-ascend-a3": [],
     "daily-test-1-ascend-npu": [
         TestFile("ascend/test_ascend_tp1_bf16.py", 400),
         TestFile("ascend/test_ascend_graph_tp1_bf16.py", 400),
@@ -456,6 +453,14 @@ suite_ascend = {
         TestFile("ascend/test_ascend_enable_profile_cuda_graph.py", 400),
         TestFile("ascend/test_ascend_enable_request_time_stats_logging.py", 400),
         TestFile("ascend/test_ascend_tbo_token_distribution_threshold.py", 400),
+        TestFile("test_radix_attention.py", 400),
+        TestFile("ascend/test_ascend_schedule_conservativeness.py", 400),
+        TestFile("ascend/test_ascend_cpu_offload_gb.py", 400),
+        TestFile("ascend/test_ascend_max_loras_per_batch.py", 400),
+        TestFile("ascend/test_ascend_max_loaded_loras.py", 400),
+        TestFile("ascend/test_ascend_lora_backend.py", 400),
+        TestFile("ascend/test_ascend_hicache_io_backend.py", 400),
+        TestFile("ascend/test_ascend_enable_mixed_chunk.py", 400),
     ],
     "daily-test-2-ascend-npu": [
         TestFile("ascend/test_ascend_tp2_bf16.py", 400),
@@ -484,6 +489,9 @@ suite_ascend = {
         TestFile("ascend/test_ascend_warmups.py", 400),
         TestFile("ascend_k8s/test_ascend_llm_models_Qwen3_32B.py", 400),
         TestFile("models/test_qwen_models.py", 400),
+        TestFile("ascend/test_disaggregation_decode_tp.py", 400),
+        TestFile("ascend/test_disaggregation_decode_dp.py", 400),
+        TestFile("ascend/test_disaggregation_prefill_pp.py", 400),
     ],
     "daily-test-8-ascend-npu": [
         TestFile("ascend/test_vlm_models_glm_4_5v.py", 400),
@@ -499,10 +507,16 @@ suite_ascend = {
         TestFile("ascend/test_ascend_eplb_algorithm.py", 400),
         TestFile("ascend/test_ascend_llm_models_grok.py", 400),
         TestFile("ascend/test_ascend_llm_models_XVERSE.py", 400),
+        TestFile("ascend/test_ascend_deepseek_mtp.py", 400),
     ],
     "pr-test-npu-innersource-k8s": [
         TestFile("ascend_k8s/test_ascend_disaggregation_deepep_k8s_2p1d.py", 400),
     ],
+    "per-commit-1-ascend-npu-debug": [],
+    "per-commit-2-ascend-npu-debug": [],
+    "per-commit-4-ascend-npu-debug": [],
+    "per-commit-8-ascend-npu-debug": [],
+    "per-commit-16-ascend-npu-debug": [],
 }
 
 suites.update(suite_amd)

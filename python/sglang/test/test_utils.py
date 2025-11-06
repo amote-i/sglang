@@ -732,14 +732,26 @@ class TestFile:
 
 def run_unittest_files(files: List[TestFile], timeout_per_file: float):
     tic = time.perf_counter()
-    success = True
+    overall_success = True  # Overall success flag (only True if all files succeed)
+
+    # Statistical variables
+    total_files = len(files)
+    success_count = 0
+    failure_count = 0
+    timeout_count = 0
+    execution_results = []  # Store detailed results for each file
 
     for i, file in enumerate(files):
         filename, estimated_time = file.name, file.estimated_time
         process = None
+        result = {
+            "filename": filename,
+            "status": "unknown",  # Possible values: success, failure, timeout
+            "duration": 0.0  # Execution duration in seconds
+        }
 
         def run_one_file(filename):
-            nonlocal process
+            nonlocal process, result
 
             filename = os.path.join(os.getcwd(), filename)
             print(
@@ -753,6 +765,7 @@ def run_unittest_files(files: List[TestFile], timeout_per_file: float):
             )
             process.wait()
             elapsed = time.perf_counter() - tic
+            result["duration"] = elapsed
 
             print(
                 f".\n.\nEnd ({i}/{len(files) - 1}):\n{filename=}, {elapsed=:.0f}, {estimated_time=}\n.\n.\n",
@@ -764,25 +777,54 @@ def run_unittest_files(files: List[TestFile], timeout_per_file: float):
             ret_code = run_with_timeout(
                 run_one_file, args=(filename,), timeout=timeout_per_file
             )
-            assert (
-                ret_code == 0
-            ), f"expected return code 0, but {filename} returned {ret_code}"
+            if ret_code == 0:
+                result["status"] = "success"
+                success_count += 1
+            else:
+                result["status"] = "failure"
+                failure_count += 1
+                overall_success = False  # Individual failure affects overall result
+                print(
+                    f"Test failed: {filename} returned non-zero exit code {exit_code}\n",
+                    flush=True
+                )
         except TimeoutError:
             kill_process_tree(process.pid)
             time.sleep(5)
+            result["status"] = "timeout"
+            timeout_count += 1
+            overall_success = False  # Timeout affects overall result
             print(
                 f"\nTimeout after {timeout_per_file} seconds when running {filename}\n",
                 flush=True,
             )
-            success = False
-            break
 
-    if success:
-        print(f"Success. Time elapsed: {time.perf_counter() - tic:.2f}s", flush=True)
-    else:
-        print(f"Fail. Time elapsed: {time.perf_counter() - tic:.2f}s", flush=True)
+        execution_results.append(result)
 
-    return 0 if success else -1
+    # Calculate total execution time
+    total_duration = time.perf_counter() - tic
+
+    # Print statistical summary (英文统计结果)
+    print("\n" + "="*50)
+    print("Test Execution Summary:")
+    print(f"Total test files: {total_files}")
+    print(f"Success: {success_count} ({success_count/total_files*100:.1f}%)")
+    print(f"Failures: {failure_count} ({failure_count/total_files*100:.1f}%)")
+    print(f"Timeouts: {timeout_count} ({timeout_count/total_files*100:.1f}%)")
+    print(f"Total execution time: {total_duration:.2f}s")
+    print("="*50 + "\n")
+
+    # Print detailed results
+    print("Detailed Execution Results:")
+    for res in execution_results:
+        status_emoji = {
+            "success": "✅",
+            "failure": "❌",
+            "timeout": "⏰"
+        }[res["status"]]
+        print(f"{status_emoji} {res['filename']} - Duration: {res['duration']:.2f}s - Status: {res['status']}")
+
+    return 0 if overall_success else -1
 
 
 def get_similarities(vec1, vec2):

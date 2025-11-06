@@ -1,13 +1,13 @@
 name: Nightly Test
 
 on:
-  schedule:
-    - cron: '0 0 * * *'
-  push:
-    branches:
-      - main
-    paths:
-      - "python/sglang/version.py"
+  # schedule:
+  #   - cron: '0 0 * * *'
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - "python/sglang/version.py"
   workflow_dispatch:
 
 concurrency:

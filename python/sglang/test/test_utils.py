@@ -32,6 +32,7 @@ from sglang.global_config import global_config
 from sglang.srt.utils import (
     get_bool_env_var,
     get_device,
+    is_npu,
     is_port_available,
     kill_process_tree,
     retry,
@@ -165,6 +166,8 @@ if is_in_amd_ci():
 if is_blackwell_system():
     DEFAULT_TIMEOUT_FOR_SERVER_LAUNCH = 3000
 
+if is_npu():
+    DEFAULT_TIMEOUT_FOR_SERVER_LAUNCH = 3000
 
 def call_generate_lightllm(prompt, temperature, max_tokens, stop=None, url=None):
     assert url is not None

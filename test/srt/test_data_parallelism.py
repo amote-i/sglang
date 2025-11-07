@@ -31,6 +31,8 @@ class TestDataParallelism(CustomTestCase):
                 "--attention-backend",
                 "ascend",
                 "--disable-cuda-graph",
+                "--mem-fraction-static",
+                0.8,
             ]
             if is_npu()
             else ["--dp", 2]

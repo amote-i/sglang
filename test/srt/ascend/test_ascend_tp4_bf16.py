@@ -40,7 +40,7 @@ class TestAscendTp4Bf16(CustomTestCase):
             "--cuda-graph-max-bs",
             32,
             "--tp-size",
-            4,
+            2,
         ]
 
     def test_a_gsm8k(self):

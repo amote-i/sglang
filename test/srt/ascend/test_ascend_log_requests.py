@@ -76,7 +76,7 @@ class TestLogRequests(CustomTestCase):
             content = err_log_file.read()
             print(content)
             self.assertTrue(len(content) > 0)
-            pattern = r"Finish: obj=GenerateReqInput\(rid='[^']*', text='The capital of France is'"
+            pattern = r"Finish: obj=GenerateReqInput\(rid='[^']*', http_worker_ipc=None, text='The capital of France is'"
             self.assertIsNotNone(re.search(pattern, content))
         finally:
             kill_process_tree(process.pid)
@@ -87,14 +87,14 @@ class TestLogRequests(CustomTestCase):
 
     def test_log_requests_level(self):
         message = {
-            "0": "Finish: obj=GenerateReqInput\(rid='[^']*', video_data=None,",
-            "1": "Finish: obj=GenerateReqInput\(rid='[^']*', video_data=None, sampling_params=",
-            "2": "Finish: obj=GenerateReqInput\(rid='[^']*', text=",
-            "3": "Finish: obj=GenerateReqInput\(rid='[^']*', text=",
+            "0": "Finish: obj=GenerateReqInput\(rid='[^']*', http_worker_ipc=None, video_data=None,",
+            "1": "Finish: obj=GenerateReqInput\(rid='[^']*', http_worker_ipc=None, video_data=None, sampling_params=",
+            "2": "Finish: obj=GenerateReqInput\(rid='[^']*', http_worker_ipc=None, text=",
+            "3": "Finish: obj=GenerateReqInput\(rid='[^']*', http_worker_ipc=None, text=",
         }
         out_log_name = "./log_requests_level_out_log.txt"
         err_log_name = "./log_requests_level_err_log.txt"
-        keyword_Finish = r".*Finish: obj=GenerateReqInput\(rid='[^']*', text='just"
+        keyword_Finish = r".*Finish: obj=GenerateReqInput\(rid='[^']*', http_worker_ipc=None, text='just"
         keyword_start = "out={'text': '"
         keyword_end = "', 'output_ids'"
         for i in [0, 1, 2, 3]:

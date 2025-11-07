@@ -4,21 +4,50 @@ python3 -m unittest test_chunked_prefill.TestChunkedPrefill.test_mixed_chunked_p
 
 import unittest
 
+from sglang.srt.utils import is_npu
 from sglang.test.test_utils import CustomTestCase, run_mmlu_test, run_mulit_request_test
 
 
 class TestChunkedPrefill(CustomTestCase):
     def test_chunked_prefill(self):
-        run_mmlu_test(disable_radix_cache=False, enable_mixed_chunk=False)
+        if is_npu():
+            run_mmlu_test(
+                disable_radix_cache=False,
+                enable_mixed_chunk=False,
+                chunked_prefill_size=128,
+            )
+        else:
+            run_mmlu_test(disable_radix_cache=False, enable_mixed_chunk=False)
 
     def test_mixed_chunked_prefill(self):
-        run_mmlu_test(disable_radix_cache=False, enable_mixed_chunk=True)
+        if is_npu():
+            run_mmlu_test(
+                disable_radix_cache=False,
+                enable_mixed_chunk=True,
+                chunked_prefill_size=128,
+            )
+        else:
+            run_mmlu_test(disable_radix_cache=False, enable_mixed_chunk=True)
 
     def test_chunked_prefill_without_radix_cache(self):
-        run_mmlu_test(disable_radix_cache=True, enable_mixed_chunk=False)
+        if is_npu():
+            run_mmlu_test(
+                disable_radix_cache=True,
+                enable_mixed_chunk=False,
+                chunked_prefill_size=128,
+            )
+        else:
+            run_mmlu_test(disable_radix_cache=True, enable_mixed_chunk=False)
 
     def test_mixed_chunked_prefill_without_radix_cache(self):
-        run_mmlu_test(disable_radix_cache=True, enable_mixed_chunk=True)
+        if is_npu():
+            run_mmlu_test(
+                disable_radix_cache=True,
+                enable_mixed_chunk=True,
+                chunked_prefill_size=128,
+            )
+        else:
+            run_mmlu_test(disable_radix_cache=True, enable_mixed_chunk=True)
 
     def test_mixed_chunked_prefill_multi_requests(self):
         run_mulit_request_test(

@@ -1366,7 +1366,7 @@ def run_and_check_memory_leak(
     if disable_overlap:
         other_args += ["--disable-overlap-schedule"]
 
-    model = DEFAULT_MODEL_NAME_FOR_TEST
+    # model = DEFAULT_MODEL_NAME_FOR_TEST
     port = random.randint(4000, 5000)
     base_url = f"http://127.0.0.1:{port}"
 

@@ -788,7 +788,7 @@ def run_unittest_files(files: List[TestFile], timeout_per_file: float):
                 failure_count += 1
                 overall_success = False  # Individual failure affects overall result
                 print(
-                    f"Test failed: {filename} returned non-zero exit code {exit_code}\n",
+                    f"Test failed: {filename} returned non-zero exit code {ret_code}\n",
                     flush=True
                 )
         except TimeoutError:

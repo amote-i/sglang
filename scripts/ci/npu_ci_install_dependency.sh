@@ -17,7 +17,8 @@ apt update -y && apt install -y \
     clang \
     locales \
     ccache \
-    ca-certificates
+    ca-certificates \
+    jq
 update-ca-certificates
 python3 -m ${PIP_INSTALL} --upgrade pip
 

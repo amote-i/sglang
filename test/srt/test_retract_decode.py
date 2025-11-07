@@ -29,6 +29,8 @@ class TestRetractDecode(CustomTestCase):
                 "--attention-backend",
                 "ascend",
                 "--disable-cuda-graph",
+                "--mem-fraction-static",
+                0.8,
             ]
             if is_npu()
             else []
@@ -76,6 +78,8 @@ class TestRetractDecodeChunkCache(CustomTestCase):
                 "--attention-backend",
                 "ascend",
                 "--disable-cuda-graph",
+                "--mem-fraction-static",
+                0.8,
             ]
             if is_npu()
             else ["--disable-radix-cache", "--chunked-prefill-size", 128]

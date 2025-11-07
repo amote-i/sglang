@@ -40,6 +40,8 @@ class TestReasoningContentAPI(CustomTestCase):
                 "--attention-backend",
                 "ascend",
                 "--disable-cuda-graph",
+                "--mem-fraction-static",
+                0.8,
             ]
             if is_npu()
             else [
@@ -210,6 +212,8 @@ class TestReasoningContentWithoutParser(CustomTestCase):
                 "--attention-backend",
                 "ascend",
                 "--disable-cuda-graph",
+                "--mem-fraction-static",
+                0.8,
             ]
             if is_npu()
             else []

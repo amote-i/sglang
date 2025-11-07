@@ -29,6 +29,8 @@ DEFAULT_SERVER_ARGS = (
         "--attention-backend",
         "cutlass_mla",
         "--disable-cuda-graph",
+        "--mem-fraction-static",
+        0.9,
     ]
     if is_npu()
     else [

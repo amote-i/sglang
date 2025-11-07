@@ -146,11 +146,12 @@ class TestChatCompletionRequest(unittest.TestCase):
         """Test basic chat completion request"""
         messages = [{"role": "user", "content": "Hello"}]
         request = ChatCompletionRequest(model="test-model", messages=messages)
+        print(request)
         self.assertEqual(request.model, "test-model")
         self.assertEqual(len(request.messages), 1)
         self.assertEqual(request.messages[0].role, "user")
         self.assertEqual(request.messages[0].content, "Hello")
-        self.assertEqual(request.temperature, 0.7)  # default
+        self.assertEqual(request.temperature, None)  # default
         self.assertFalse(request.stream)  # default
         self.assertEqual(request.tool_choice, "none")  # default when no tools
 

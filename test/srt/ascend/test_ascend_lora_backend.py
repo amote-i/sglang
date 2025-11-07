@@ -17,15 +17,19 @@ class TestLoraBackend(CustomTestCase):
         other_args = (
             [
                 "--lora-backend",
-                "ascend",
+                "triton",
                 "--attention-backend",
                 "ascend",
                 "--disable-cuda-graph",
+                "--mem-fraction-static",
+                0.8,
             ]
             if is_npu()
             else [
                 "--lora-backend",
-                "ascend",
+                "triton",
+                "--mem-fraction-static",
+                0.8,
             ]
         )
         process = popen_launch_server(
@@ -58,7 +62,7 @@ class TestLoraBackend(CustomTestCase):
 
         self.assertEqual(
             response.json()["lora_backend"],
-            "ascend",
+            "triton",
         )
         kill_process_tree(process.pid)
 

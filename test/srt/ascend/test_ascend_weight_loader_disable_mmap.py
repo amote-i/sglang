@@ -23,6 +23,8 @@ class TestWeightLoaderDisableMmap(CustomTestCase):
                     "--attention-backend",
                     "ascend",
                     "--disable-cuda-graph",
+                    "--mem-fraction-static",
+                    0.9,
                 ]
                 if is_npu()
                 else ["----weight-loader-disable-mmap"]
@@ -32,6 +34,8 @@ class TestWeightLoaderDisableMmap(CustomTestCase):
                     "--attention-backend",
                     "ascend",
                     "--disable-cuda-graph",
+                    "--mem-fraction-static",
+                    0.9,
                 ]
                 if is_npu()
                 else []

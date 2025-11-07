@@ -32,6 +32,8 @@ class TestModeImpl(CustomTestCase):
                     "--model-impl",
                     "transformers",
                     "--trust-remote-code",
+                    "--mem-fraction-static",
+                    0.9,
                 ]
                 if is_npu()
                 else [

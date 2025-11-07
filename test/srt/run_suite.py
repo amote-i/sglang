@@ -510,7 +510,9 @@ suite_ascend = {
     "pr-test-npu-innersource-k8s": [
         TestFile("ascend_k8s/test_ascend_disaggregation_deepep_k8s_2p1d.py", 400),
     ],
-    "per-commit-1-ascend-npu-debug": [],
+    "per-commit-1-ascend-npu-debug": [
+        TestFile("ascend/test_ascend_llm_models.py", 400),
+    ],
     "per-commit-2-ascend-npu-debug": [],
     "per-commit-4-ascend-npu-debug": [],
     "per-commit-8-ascend-npu-debug": [],

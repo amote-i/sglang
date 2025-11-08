@@ -43,6 +43,7 @@ class TestPortArgs(unittest.TestCase):
         server_args.port = 30000
         server_args.nccl_port = None
         server_args.enable_dp_attention = False
+        server_args.tokenizer_worker_num = 1
 
         port_args = PortArgs.init_new(server_args)
 
@@ -61,6 +62,7 @@ class TestPortArgs(unittest.TestCase):
         server_args.enable_dp_attention = True
         server_args.nnodes = 1
         server_args.dist_init_addr = None
+        server_args.tokenizer_worker_num = 1
 
         port_args = PortArgs.init_new(server_args)
 
@@ -81,10 +83,11 @@ class TestPortArgs(unittest.TestCase):
         server_args.enable_dp_attention = True
         server_args.nnodes = 1
         server_args.dist_init_addr = "192.168.1.1:25000"
+        server_args.tokenizer_worker_num = 1
 
-        port_args = PortArgs.init_new(server_args, dp_rank=2)
+        port_args = PortArgs.init_new(server_args, dp_rank=2, worker_ports=[0,1,2])
 
-        self.assertTrue(port_args.scheduler_input_ipc_name.endswith(":25008"))
+        self.assertTrue(port_args.scheduler_input_ipc_name.endswith(":2"))
 
         self.assertTrue(port_args.tokenizer_ipc_name.startswith("tcp://192.168.1.1:"))
         self.assertTrue(port_args.detokenizer_ipc_name.startswith("tcp://192.168.1.1:"))
@@ -102,6 +105,7 @@ class TestPortArgs(unittest.TestCase):
         server_args.enable_dp_attention = True
         server_args.nnodes = 2
         server_args.dist_init_addr = "192.168.1.1:25000"
+        server_args.tokenizer_worker_num = 1
 
         port_args = PortArgs.init_new(server_args)
 
@@ -123,6 +127,7 @@ class TestPortArgs(unittest.TestCase):
         server_args.enable_dp_attention = True
         server_args.nnodes = 2
         server_args.dist_init_addr = "192.168.1.1"
+        server_args.tokenizer_worker_num = 1
 
         with self.assertRaises(AssertionError) as context:
             PortArgs.init_new(server_args)
@@ -144,6 +149,7 @@ class TestPortArgs(unittest.TestCase):
         server_args.enable_dp_attention = True
         server_args.nnodes = 2
         server_args.dist_init_addr = "192.168.1.1:abc"
+        server_args.tokenizer_worker_num = 1
 
         with self.assertRaises(ValueError) as context:
             PortArgs.init_new(server_args)
@@ -162,6 +168,7 @@ class TestPortArgs(unittest.TestCase):
         server_args.enable_dp_attention = True
         server_args.nnodes = 2
         server_args.dist_init_addr = "[2001:db8::1]:25000"
+        server_args.tokenizer_worker_num = 1
 
         port_args = PortArgs.init_new(server_args)
 
@@ -188,6 +195,7 @@ class TestPortArgs(unittest.TestCase):
         server_args.enable_dp_attention = True
         server_args.nnodes = 2
         server_args.dist_init_addr = "[invalid-ipv6]:25000"
+        server_args.tokenizer_worker_num = 1
 
         with self.assertRaises(ValueError) as context:
             PortArgs.init_new(server_args)
@@ -207,6 +215,7 @@ class TestPortArgs(unittest.TestCase):
         server_args.enable_dp_attention = True
         server_args.nnodes = 2
         server_args.dist_init_addr = "[2001:db8::1:25000"
+        server_args.tokenizer_worker_num = 1
 
         with self.assertRaises(ValueError) as context:
             PortArgs.init_new(server_args)
@@ -227,6 +236,7 @@ class TestPortArgs(unittest.TestCase):
         server_args.enable_dp_attention = True
         server_args.nnodes = 2
         server_args.dist_init_addr = "[2001:db8::1]"
+        server_args.tokenizer_worker_num = 1
 
         with self.assertRaises(ValueError) as context:
             PortArgs.init_new(server_args)
@@ -249,6 +259,7 @@ class TestPortArgs(unittest.TestCase):
         server_args.enable_dp_attention = True
         server_args.nnodes = 2
         server_args.dist_init_addr = "[2001:db8::1]:abcde"
+        server_args.tokenizer_worker_num = 1
 
         with self.assertRaises(ValueError) as context:
             PortArgs.init_new(server_args)
@@ -269,6 +280,7 @@ class TestPortArgs(unittest.TestCase):
         server_args.enable_dp_attention = True
         server_args.nnodes = 2
         server_args.dist_init_addr = "[2001:db8::1]#25000"
+        server_args.tokenizer_worker_num = 1
 
         with self.assertRaises(ValueError) as context:
             PortArgs.init_new(server_args)

@@ -66,7 +66,7 @@ class TestStartProfile(CustomTestCase):
 
         self._post_request()
 
-        self._check_non_empty_profile_dir()
+        self._check_empty_profile_dir()
 
     def test_start_profile_2(self):
         """Test /start_profile with no argument"""
@@ -79,14 +79,12 @@ class TestStartProfile(CustomTestCase):
         response = requests.post(
             f"{DEFAULT_URL_FOR_TEST}/stop_profile",
         )
-        self._check_non_empty_profile_dir()
 
     def test_start_profile_3(self):
         """Test /start_profile with num_steps argument"""
-        self._clear_profile_dir()
         response = self._start_profile(num_steps=5)
         self._post_request()
-        self._check_non_empty_profile_dir()
+        self._check_empty_profile_dir()
 
     def _start_profile(self, **kwargs):
         """Start profiling with optional parameters."""

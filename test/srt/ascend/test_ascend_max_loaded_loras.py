@@ -21,11 +21,15 @@ class TestMaxLoadedLoras(CustomTestCase):
                 "--attention-backend",
                 "ascend",
                 "--disable-cuda-graph",
+                "--mem-fraction-static",
+                0.8,
             ]
             if is_npu()
             else [
                 "--max-loaded-loras",
                 1,
+                "--mem-fraction-static",
+                0.8,
             ]
         )
         process = popen_launch_server(

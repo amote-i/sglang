@@ -305,7 +305,7 @@ jobs:
 
   daily-innersource-k8s:
     needs: [ build-innersource-image ]
-    if: ${{ github.repository == 'Ascend/sglang' || github.event_name == 'pull_request' }}
+    if: ${{ needs.build-innersource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
     runs-on: linux-amd64-cpu-0
     container:
       image: ${{ vars.REGISTRY_HK }}/base_image/ascend-ci/sglang:main

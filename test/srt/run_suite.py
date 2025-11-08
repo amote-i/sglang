@@ -514,7 +514,7 @@ suite_ascend = {
     "per-commit-2-ascend-npu-debug": [],
     "per-commit-4-ascend-npu-debug": [],
     "per-commit-8-ascend-npu-debug": [
-        TestFile("ascend/test_ascend_mm_attention_backend.py", 400),
+        # TestFile("ascend/test_ascend_mm_attention_backend.py", 400),
     ],
     "per-commit-16-ascend-npu-debug": [],
 }

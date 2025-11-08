@@ -304,11 +304,11 @@ jobs:
           python3 run_suite.py --suite daily-test-16-ascend-npu --timeout-per-file 7200 --auto-partition-id ${{ matrix.part }} --auto-partition-size 3
 
   daily-innersource-k8s:
-    needs: [ build-innersource-image ]
-    if: ${{ needs.build-innersource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
+    needs: [ build-innersource-x86-image ]
+    if: ${{ needs.build-innersource-x86-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
     runs-on: linux-amd64-cpu-0
     container:
-      image: ${{ vars.REGISTRY_HK }}/base_image/ascend-ci/sglang:main
+      image: ${{ vars.REGISTRY_HK }}/base_image/ascend-ci/sglang:main-x86
     steps:
       - name: Pre-config git access token
         run: |

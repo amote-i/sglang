@@ -88,6 +88,8 @@ class TestDisaggregationDecodeTp(TestDisaggregationBase):
                 "--disable-cuda-graph",
                 "--attention-backend",
                 "ascend",
+                "--mem-fraction-static",
+                0.8,
             ]
             if is_npu()
             else [

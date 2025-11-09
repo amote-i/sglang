@@ -25,6 +25,8 @@ class TestQwen2(CustomTestCase):
                 "--attention-backend",
                 "ascend",
                 "--disable-cuda-graph",
+                "--mem-fraction-static",
+                0.8,
             ]
             if is_npu()
             else []

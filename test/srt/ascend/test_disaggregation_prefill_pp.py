@@ -54,6 +54,8 @@ class TestDisaggregationPrefillPp(TestDisaggregationBase):
                 "--disable-cuda-graph",
                 "--attention-backend",
                 "ascend",
+                "--mem-fraction-static",
+                0.8,
             ]
             if is_npu()
             else [
@@ -84,6 +86,8 @@ class TestDisaggregationPrefillPp(TestDisaggregationBase):
                 "ascend",
                 "--disaggregation-prefill-pp",
                 "2",
+                "--mem-fraction-static",
+                0.8,
             ]
             if is_npu()
             else [

@@ -2,7 +2,7 @@ name: Daily Build Test Innersource (Ascend NPU)
 
 on:
   schedule:
-    - cron: "0 4 * * *" # Trigger the daily build pipeline every 12 hours.
+    - cron: "0 16 * * *" # Trigger the daily build pipeline every 12 hours.
   workflow_dispatch:
   # pull_request:
   #   branches:
@@ -328,9 +328,9 @@ jobs:
           # copy download through proxy
           curl -o /tmp/test.jsonl -L https://gh-proxy.test.osinfra.cn/https://raw.githubusercontent.com/openai/grade-school-math/master/grade_school_math/data/test.jsonl
 
-      - name: Print Log Information
-        run: |
-          bash scripts/ci/log_print.sh
+      # - name: Print Log Information
+      #   run: |
+      #     bash scripts/ci/log_print.sh
           
       - name: Run test
         timeout-minutes: 600

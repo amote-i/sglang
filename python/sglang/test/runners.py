@@ -114,6 +114,8 @@ def _get_sentence_transformer_embedding_model(
             modules=[word_embedding_model, pooling_model], truncate_dim=matryoshka_dim
         )
 
+    if is_npu():
+        return model.npu()
     return model.cuda()
 
 

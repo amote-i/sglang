@@ -1350,6 +1350,8 @@ def run_and_check_memory_leak(
             "--attention-backend",
             "ascend",
             "--disable-cuda-graph",
+            "--mem-fraction-static",
+            0.8,
         ]
         if is_npu()
         else [

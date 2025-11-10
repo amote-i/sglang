@@ -37,7 +37,7 @@ jobs:
           pip config set global.index-url http://${CACHING_URL}/pypi/simple
           pip config set global.trusted-host ${CACHING_URL}
 
-          bash scripts/ci/npu_ci_install_dependency.sh
+          bash scripts/ci/npu_ci_install_dependency.sh a3
           # copy required file from our daily cache
           cp ~/.cache/modelscope/hub/datasets/otavia/ShareGPT_Vicuna_unfiltered/ShareGPT_V3_unfiltered_cleaned_split.json /tmp
           # copy download through proxy
@@ -54,7 +54,7 @@ jobs:
       - name: Preparation
         shell: bash
         run: |
-          # 提取PR的基本信息
+          # Extract PR basic information
           COMMIT_SHA="${{ github.sha }}"
           PR_NUMBER="${{ github.event.pull_request.number }}"
           PR_TITLE="${{ github.event.pull_request.title }}"
@@ -63,8 +63,8 @@ jobs:
           PR_MERGED_AT="${{ github.event.pull_request.merged_at }}"
           PR_BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
 
-          # 格式化日期和时间（同之前的逻辑）
-          PR_DATE=$(date -u -d "$PR_MERGED_AT" +%Y%m%d)  # -u 确保用 UTC 时间解析
+          # Format date and time
+          PR_DATE=$(date -u -d "$PR_MERGED_AT" +%Y%m%d)  # -u ensures parsing with UTC time
           PR_TIME=$(date -u -d "$PR_MERGED_AT" +%Y-%m-%dT%H:%M:%S)
 
           DEVICE=""
@@ -72,12 +72,12 @@ jobs:
           if [[ "$runner_name" == *a3* ]]; then
               DEVICE="910c"
           fi
-          # 生成目录
+          # Create directory
           TARGET_DIR="/root/.cache/aisbench/$PR_DATE/$COMMIT_SHA"
           echo "TARGET_DIR=$TARGET_DIR" >> $GITHUB_ENV
-          mkdir -p "$TARGET_DIR"  # 确保目录存在
+          mkdir -p "$TARGET_DIR"  # Ensure directory exists
 
-          # 生成 JSON 文件
+          # Generate JSON file
           cat > "$TARGET_DIR/pr.json" << EOF
           {
             "pr_id": "$PR_NUMBER",

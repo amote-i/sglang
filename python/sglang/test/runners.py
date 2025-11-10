@@ -31,7 +31,7 @@ from transformers import (
 )
 
 from sglang.srt.entrypoints.engine import Engine
-from sglang.srt.utils import load_image
+from sglang.srt.utils import is_npu, load_image
 from sglang.srt.utils.hf_transformers_utils import get_tokenizer
 from sglang.test.test_utils import DEFAULT_PORT_FOR_SRT_TEST_RUNNER, calculate_rouge_l
 
@@ -279,11 +279,18 @@ class HFRunner:
         elif self.model_type == "reward" or self.model_type == "cross_encoder":
             from transformers import AutoModelForSequenceClassification
 
-            self.model = AutoModelForSequenceClassification.from_pretrained(
-                model_path,
-                torch_dtype=torch_dtype,
-                trust_remote_code=self.needs_trust_remote_code(model_path),
-            ).cuda()
+            if is_npu():
+                self.model = AutoModelForSequenceClassification.from_pretrained(
+                    model_path,
+                    torch_dtype=torch_dtype,
+                    trust_remote_code=self.needs_trust_remote_code(model_path),
+                ).npu()
+            else:
+                self.model = AutoModelForSequenceClassification.from_pretrained(
+                    model_path,
+                    torch_dtype=torch_dtype,
+                    trust_remote_code=self.needs_trust_remote_code(model_path),
+                ).cuda()
         else:
             raise Exception(f"Unrecognized model type {self.model_type}")
         self.tokenizer = get_tokenizer(
@@ -340,9 +347,14 @@ class HFRunner:
                         logits = self.model.encode(prompts).tolist()
                     out_queue.put(ModelOutput(embed_logits=logits))
                 elif self.model_type == "cross_encoder":
-                    inputs = self.tokenizer(
-                        prompts, padding=True, return_tensors="pt"
-                    ).to("cuda")
+                    if is_npu():
+                        inputs = self.tokenizer(
+                            prompts, padding=True, return_tensors="pt"
+                        ).to("npu")
+                    else:
+                        inputs = self.tokenizer(
+                            prompts, padding=True, return_tensors="pt"
+                        ).to("cuda")
                     scores = self.model(**inputs).logits
                     scores = scores.squeeze().tolist()
                     if not isinstance(scores, list):

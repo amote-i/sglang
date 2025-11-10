@@ -89,7 +89,7 @@ jobs:
             DEVICE_TYPE=${{ matrix.device_type }}
             REGISTRY=${{ vars.REGISTRY_HK }}/base_image/ascend-ci
             PIP_INDEX_URL=https://mirrors.huaweicloud.com/repository/pypi/simple
-            APTMIRROR=mirrors.huaweicloud.com
+            APTMIRROR=repo.huaweicloud.com
   sync:
     needs: build
     if: github.repository == 'Ascend/sglang' && github.event_name != 'pull_request'

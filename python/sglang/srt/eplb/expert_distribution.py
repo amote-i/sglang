@@ -717,7 +717,7 @@ class _UtilizationRateAccumulatorMixin(_Accumulator):
     def _collect_metrics_if_needed(self, gpu_physical_count: torch.Tensor):
         # sglang:eplb_gpu_physical_count metric is disabled if SGLANG_EPLB_HEATMAP_COLLECTION_INTERVAL <= 0
         if (
-            envs.SGLANG_EPLB_HEATMAP_COLLECTION_INTERVAL > 0
+            envs.SGLANG_EPLB_HEATMAP_COLLECTION_INTERVAL.get() > 0
             and self._collection_counter % envs.SGLANG_EPLB_HEATMAP_COLLECTION_INTERVAL
             == 0
         ):

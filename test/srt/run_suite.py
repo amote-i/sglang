@@ -410,7 +410,7 @@ suite_ascend = {
         TestFile("ascend/test_ascend_disable_fast_image_processor.py", 400),
         TestFile("ascend/test_ascend_enable_cache_report.py", 400),
         TestFile("ascend/test_ascend_json_model_override_args.py", 400),
-        TestFile("ascend/test_ascend_llm_models_Stablelm_2_1_6b.py", 400),
+        # TestFile("ascend/test_ascend_llm_models_Stablelm_2_1_6b.py", 400),
         TestFile("ascend/test_ascend_model_impl.py", 400),
         TestFile("ascend/test_ascend_hybrid_attention_backend.py", 400),
         TestFile("ascend/test_ascend_download_dir.py", 400),

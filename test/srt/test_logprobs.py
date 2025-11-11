@@ -450,7 +450,7 @@ def main():
             return 1
 
         # Set environment variable for testing
-        os.environ["RETURN_ORIGINAL_LOGPROB"] = "True"
+        os.environ["SGLANG_RETURN_ORIGINAL_LOGPROB"] = "True"
 
         # Create test instance and run
         test_instance = TestLogprobsDense()

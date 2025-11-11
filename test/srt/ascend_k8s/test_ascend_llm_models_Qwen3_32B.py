@@ -26,6 +26,7 @@ def run_command(cmd, shell=True):
 
 class TestQwen3_32B(CustomTestCase):
     model = "/root/.cache/modelscope/hub/models/aleoyang/Qwen3-32B-w8a8-MindIE"
+    dataset = "/root/.cache/modelscope/hub/datasets/Howeee/GSM8K-in1500-bs1536/test.jsonl"
     accuracy = 0.05
 
     @classmethod
@@ -103,11 +104,12 @@ class TestQwen3_32B(CustomTestCase):
         #     self.accuracy,
         #     f'Accuracy of {self.model} is {str(metrics["accuracy"])}, is lower than {self.accuracy}',
         # )
+        port = self.base_url.split(":")[-1]
         run_command("rm -rf ./benchmark")
         run_command("pip3 install nltk==3.8")
         run_command("git clone https://gitee.com/aisbench/benchmark.git")
         run_command(
-            'sed -i \'s#path="[^"]*"#path="/root/.cache/modelscope/hub/models/aleoyang/Qwen3-32B-w8a8-MindIE"#\' ./benchmark/ais_bench/benchmark/configs/models/vllm_api/vllm_api_stream_chat.py'
+            f'sed -i \'s#path="[^"]*"#path="{self.model}"#\' ./benchmark/ais_bench/benchmark/configs/models/vllm_api/vllm_api_stream_chat.py'
         )
         run_command(
             'sed -i \'s/model="[^"]*"/model="Qwen3"/\' ./benchmark/ais_bench/benchmark/configs/models/vllm_api/vllm_api_stream_chat.py'
@@ -119,7 +121,7 @@ class TestQwen3_32B(CustomTestCase):
             'sed -i \'s/host_ip = "[^"]*"/host_ip = "127.0.0.1"/\' ./benchmark/ais_bench/benchmark/configs/models/vllm_api/vllm_api_stream_chat.py'
         )
         run_command(
-            f"sed -i 's/host_port = [^\"]*/host_port = 6000,/' ./benchmark/ais_bench/benchmark/configs/models/vllm_api/vllm_api_stream_chat.py"
+            f"sed -i 's/host_port = [^\"]*/host_port = {port},/' ./benchmark/ais_bench/benchmark/configs/models/vllm_api/vllm_api_stream_chat.py"
         )
         run_command(
             "sed -i 's/max_out_len = [^\"]*/max_out_len = 1500,/' ./benchmark/ais_bench/benchmark/configs/models/vllm_api/vllm_api_stream_chat.py"
@@ -132,7 +134,7 @@ class TestQwen3_32B(CustomTestCase):
         )
         run_command("mkdir ./benchmark/ais_bench/datasets/gsm8k")
         run_command(
-            "\cp /root/.cache/modelscope/hub/datasets/Howeee/GSM8K-in1500-bs1536/test.jsonl ./benchmark/ais_bench/datasets/gsm8k/"
+            f"\cp {self.dataset} ./benchmark/ais_bench/datasets/gsm8k/"
         )
         run_command("touch ./benchmark/ais_bench/datasets/gsm8k/train.jsonl")
         ais_res = run_command("pip3 install -e ./benchmark/")

@@ -518,7 +518,10 @@ suite_ascend = {
     "per-commit-8-ascend-npu-debug": [
         # TestFile("ascend/test_ascend_mm_attention_backend.py", 400),
     ],
-    "per-commit-16-ascend-npu-debug": [],
+    "per-commit-16-ascend-npu-debug": [
+        TestFile("ep/test_eplb.py", 400),
+        TestFile("ascend/test_ascend_eplb_algorithm.py", 400),
+    ],
 }
 
 suites.update(suite_amd)

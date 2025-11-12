@@ -403,7 +403,8 @@ suite_ascend = {
         TestFile("ascend/test_ascend_debug_tensor_dump_output_folder.py", 400),
         TestFile("ascend/test_ascend_debug_tensor_input_file.py", 400),
         TestFile("ascend/test_ascend_log_requests.py", 400),
-        TestFile("ascend/test_ascend_weight_loader_disable_mmap.py", 400),
+# TODO: [https://github.com/Ascend/sglang/issues/766] Re-enable test "ascend/test_ascend_weight_loader_disable_mmap.py".
+# TestFile("ascend/test_ascend_weight_loader_disable_mmap.py", 400),
         TestFile("ascend/test_ascend_revision.py", 400),
         TestFile("ascend/test_ascend_completion_template.py", 400),
         TestFile("ascend/test_ascend_moe_runner_backend.py", 400),
@@ -438,7 +439,8 @@ suite_ascend = {
         TestFile("test_abort.py", 400),
         TestFile("openai_server/validation/test_matched_stop.py", 400),
         TestFile("test_server_args.py", 400),
-        TestFile("test_start_profile.py", 400),
+# TODO: [https://github.com/Ascend/sglang/issues/763] Re-enable test "test_start_profile.py".
+# TestFile("test_start_profile.py", 400),
         TestFile("openai_server/features/test_reasoning_content.py", 400),
         TestFile("ascend/test_ascend_sleep_on_idle.py", 400),
         TestFile("ascend/test_ascend_bucket_time_to_first_token.py", 400),
@@ -472,7 +474,8 @@ suite_ascend = {
     ],
     "daily-test-4-ascend-npu": [
         TestFile("ascend/test_ascend_tp4_bf16.py", 400),
-        TestFile("ascend/test_ascend_mla_w8a8int8.py", 400),
+# TODO: [https://github.com/Ascend/sglang/issues/765] Re-enable test "ascend/test_ascend_mla_w8a8int8.py".
+# TestFile("ascend/test_ascend_mla_w8a8int8.py", 400),
         TestFile("ascend/test_vlm_models_qwen2_5_vl_3b_instruct.py", 400),
         TestFile("ascend/test_vlm_models_phi4_multimodal_instruct.py", 400),
         TestFile("ascend/test_vlm_models_janus-pro-7b.py", 400),

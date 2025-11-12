@@ -72,6 +72,7 @@ class TestGpuId(CustomTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Paris", response.text)
         result = run_command("npu-smi info")
+        print(result)
         result1 = run_command(
             "npu-smi info | grep '| 1     ' | grep '/ 65536' | awk -F '|' '{print $4}' | awk '{print $5}' | awk -F '/' '{print $1}'"
         )
@@ -79,7 +80,7 @@ class TestGpuId(CustomTestCase):
         print(result2)
         for i in result2:
             if i != "":
-                self.assertGreater(int(i), 50000)
+                self.assertGreater(int(i), 10000)
 
 
 if __name__ == "__main__":

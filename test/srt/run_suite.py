@@ -514,7 +514,9 @@ suite_ascend = {
         TestFile("test_no_overlap_scheduler.py", 400),
     ],
     "per-commit-2-ascend-npu-debug": [],
-    "per-commit-4-ascend-npu-debug": [],
+    "per-commit-4-ascend-npu-debug": [
+        TestFile("ascend/test_ascend_gpu_id.py", 400),
+    ],
     "per-commit-8-ascend-npu-debug": [
         # TestFile("ascend/test_ascend_mm_attention_backend.py", 400),
     ],

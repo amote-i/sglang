@@ -23,7 +23,7 @@ jobs:
     runs-on: self-hosted-x86
     strategy:
       matrix:
-        cann_version: ["8.2.rc1"]
+        cann_version: ["8.3.rc1"]
         device_type: ["a3", "910b"]
     steps:
       - name: Checkout repository

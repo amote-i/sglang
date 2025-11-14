@@ -1226,8 +1226,8 @@ def run_bench_offline_throughput(model, other_args):
 
     try:
         stdout, stderr = process.communicate()
-        output = stdout.decode()
-        error = stderr.decode()
+        output = stdout.decode('utf-8', errors='replace')
+        error = stderr.decode('utf-8', errors='replace')
         print(f"Output: {output}", flush=True)
         print(f"Error: {error}", flush=True)
 

@@ -23,7 +23,7 @@ jobs:
     runs-on: self-hosted-arm64
     strategy:
       matrix:
-        cann_version: ["8.2.rc1"]
+        cann_version: ["8.3.rc1"]
         device_type: ["a3", "910b"]
     steps:
       - name: Checkout repository
@@ -88,7 +88,7 @@ jobs:
             CANN_VERSION=${{ matrix.cann_version }}
             DEVICE_TYPE=${{ matrix.device_type }}
             REGISTRY=${{ vars.REGISTRY_HK }}/base_image/ascend-ci
-            PIP_INDEX_URL=https://mirrors.huaweicloud.com/repository/pypi/simple
+            PIP_INDEX_URL=https://repo.huaweicloud.com/repository/pypi/simple
             APTMIRROR=repo.huaweicloud.com
   sync:
     needs: build

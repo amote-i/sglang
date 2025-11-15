@@ -131,7 +131,7 @@ class TestOriginalLogprob(unittest.TestCase):
 
         for env_val in ["True", "False"]:
             with self.subTest(return_original_logprob=env_val):
-                os.environ["RETURN_ORIGINAL_LOGPROB"] = env_val
+                os.environ["SGLANG_RETURN_ORIGINAL_LOGPROB"] = env_val
 
                 # ----- SGLang side -----
                 if is_npu():

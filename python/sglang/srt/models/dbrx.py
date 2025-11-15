@@ -139,7 +139,7 @@ class DbrxExperts(nn.Module):
                 dtype=self.params_dtype,
             )
         )
-        self.w2_weight  = nn.Parameter(
+        self.w2_weight = nn.Parameter(
             torch.empty(
                 self.num_total_experts,
                 self.d_model,

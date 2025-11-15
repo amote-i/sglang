@@ -85,7 +85,7 @@ class TestPortArgs(unittest.TestCase):
         server_args.dist_init_addr = "192.168.1.1:25000"
         server_args.tokenizer_worker_num = 1
 
-        port_args = PortArgs.init_new(server_args, dp_rank=2, worker_ports=[0,1,2])
+        port_args = PortArgs.init_new(server_args, dp_rank=2, worker_ports=[0, 1, 2])
 
         self.assertTrue(port_args.scheduler_input_ipc_name.endswith(":2"))
 

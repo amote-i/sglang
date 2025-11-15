@@ -26,7 +26,9 @@ def run_command(cmd, shell=True):
 
 class TestQwen3_32B(CustomTestCase):
     model = "/root/.cache/modelscope/hub/models/aleoyang/Qwen3-32B-w8a8-MindIE"
-    dataset = "/root/.cache/modelscope/hub/datasets/Howeee/GSM8K-in1500-bs1536/test.jsonl"
+    dataset = (
+        "/root/.cache/modelscope/hub/datasets/Howeee/GSM8K-in1500-bs1536/test.jsonl"
+    )
     accuracy = 0.05
 
     @classmethod
@@ -133,9 +135,7 @@ class TestQwen3_32B(CustomTestCase):
             r"""sed -i '/generation_kwargs = dict(/,/),/c\        generation_kwargs = dict(\n            temperature = 0,\n            ignore_eos = True,\n        ),'  ./benchmark/ais_bench/benchmark/configs/models/vllm_api/vllm_api_stream_chat.py"""
         )
         run_command("mkdir ./benchmark/ais_bench/datasets/gsm8k")
-        run_command(
-            f"\cp {self.dataset} ./benchmark/ais_bench/datasets/gsm8k/"
-        )
+        run_command(f"\cp {self.dataset} ./benchmark/ais_bench/datasets/gsm8k/")
         run_command("touch ./benchmark/ais_bench/datasets/gsm8k/train.jsonl")
         ais_res = run_command("pip3 install -e ./benchmark/")
         print(str(ais_res))

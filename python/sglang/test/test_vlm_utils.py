@@ -1,12 +1,8 @@
-import argparse
 import glob
 import json
 import os
 import random
 import subprocess
-import sys
-import unittest
-from types import SimpleNamespace
 
 from sglang.srt.utils import is_npu, kill_process_tree
 from sglang.test.test_utils import (

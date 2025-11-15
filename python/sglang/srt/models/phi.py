@@ -289,7 +289,7 @@ class PhiForCausalLM(nn.Module):
 
             # Handle packed weights
             is_packed = False
-            
+
             packed_modules_mapping = self.packed_modules_mapping
             # In npu mode, the packed mapping is updated in loader.py for w8a8
             if _is_npu:

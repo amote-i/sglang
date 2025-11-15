@@ -1,34 +1,39 @@
 name: Lint
 
-on:
-  push:
-    branches: [upstream/251031]
-  pull_request:
-    branches: [upstream/251031]
+on: [pull_request]
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: linux-amd64-cpu-1
+    container:
+      image: docker.m.daocloud.io/ubuntu:22.04
     steps:
-      - uses: actions/checkout@v4
-
       - name: Set up Python
-        uses: actions/setup-python@v4
+        run: |
+          # speed up by using infra cache services
+          CACHING_URL="cache-service.nginx-pypi-cache.svc.cluster.local"
+          sed -Ei "s@(ports|archive).ubuntu.com@${CACHING_URL}:8081@g" /etc/apt/sources.list
+          apt update -y
+          apt install -y python3.10 pip git
+          pip config set global.extra-index-url "https://pypi.tuna.tsinghua.edu.cn/simple https://mirrors.aliyun.com/pypi/simple/"
+          pip config set global.trusted-host "${CACHING_URL} pypi.tuna.tsinghua.edu.cn mirrors.aliyun.com"
+
+      - name: Pre-config git access token
+        run: |
+          # as we use a proxy but checkout@v4 only set basic auth header for github.com
+          # so we set the extraheader manually
+          TOKEN=`echo -n "x-access-token:${{ secrets.ADMIN_PAT}}"|base64`
+          git config --global http.https://gh-proxy.test.osinfra.cn/.extraheader "AUTHORIZATION: basic $TOKEN"
+
+      - uses: actions/checkout@v4
         with:
-          python-version: "3.10"
+          fetch-depth: 1
 
       - name: Install pre-commit hook
         run: |
-          python -m pip install pre-commit
+          python3.10 -m pip install pre-commit
+          git config --global --add safe.directory /__w/sglang/sglang
           pre-commit install
 
-      - name: Run pre-commit checks
-        run: SKIP=no-commit-to-branch pre-commit run --all-files --show-diff-on-failure
-
-      - name: Run sgl-kernel clang-format checks
-        uses: DoozyX/clang-format-lint-action@v0.18.1
-        with:
-          source: sgl-kernel
-          extensions: h,c,cpp,hpp,cu,cuh,cc
-          clangFormatVersion: 18
-          style: file
+      - name: Linting
+        run: pre-commit run --all-files --show-diff-on-failure

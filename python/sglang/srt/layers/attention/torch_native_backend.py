@@ -24,7 +24,7 @@ class TorchNativeAttnBackend(AttentionBackend):
     def init_forward_metadata(self, forward_batch: ForwardBatch):
         """Init the metadata for a forward pass."""
         pass
-    
+
     def scaled_dot_product_attention_with_softcapping(
         self,
         query,
@@ -168,7 +168,7 @@ class TorchNativeAttnBackend(AttentionBackend):
                     )
                     .squeeze(0)
                     .movedim(query.dim() - 2, 0)
-            )
+                )
             output[start_q:end_q, :, :] = per_req_out_redudant[prefill_seq_len_q:, :, :]
             start_q, start_kv = end_q, end_kv
         return output
@@ -255,7 +255,7 @@ class TorchNativeAttnBackend(AttentionBackend):
                     )
                     .squeeze(0)
                     .movedim(query.dim() - 2, 0)
-            )
+                )
             output[start_q:end_q, :, :] = per_req_out
             start_q, start_kv = end_q, end_kv
 

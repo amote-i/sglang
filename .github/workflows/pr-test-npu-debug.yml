@@ -36,7 +36,7 @@ concurrency:
   #         sed -Ei "s@(ports|archive).ubuntu.com@${CACHING_URL}:8081@g" /etc/apt/sources.list
   #         pip config set global.index-url http://${CACHING_URL}/pypi/simple
   #         pip config set global.trusted-host ${CACHING_URL}
-          
+
   #         bash scripts/ci/npu_ci_install_dependency.sh a3
   #         # copy required file from our daily cache
   #         cp ~/.cache/modelscope/hub/datasets/otavia/ShareGPT_Vicuna_unfiltered/ShareGPT_V3_unfiltered_cleaned_split.json /tmp
@@ -58,7 +58,7 @@ concurrency:
   #         pip install sentence_transformers accelerate
   #         cd test/srt
   #         python3 run_suite.py --suite per-commit-1-ascend-npu-debug --timeout-per-file 3600
-  
+
   # per-commit-2-ascend-npu-debug:
   #   if: (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') &&
   #     github.event.pull_request.draft == false
@@ -184,7 +184,7 @@ concurrency:
   #         sed -Ei "s@(ports|archive).ubuntu.com@${CACHING_URL}:8081@g" /etc/apt/sources.list
   #         pip config set global.index-url http://${CACHING_URL}/pypi/simple
   #         pip config set global.trusted-host ${CACHING_URL}
-          
+
   #         bash scripts/ci/npu_ci_install_dependency.sh a3
   #         # copy required file from our daily cache
   #         cp ~/.cache/modelscope/hub/datasets/otavia/ShareGPT_Vicuna_unfiltered/ShareGPT_V3_unfiltered_cleaned_split.json /tmp

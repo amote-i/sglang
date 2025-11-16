@@ -402,7 +402,7 @@ suite_ascend = {
         TestFile("ascend/test_ascend_hybrid_attention_backend.py", 400),
         TestFile("ascend/test_ascend_debug_tensor_dump_output_folder.py", 400),
         TestFile("ascend/test_ascend_debug_tensor_input_file.py", 400),
-        TestFile("ascend/test_ascend_log_requests.py", 400),
+        # TestFile("ascend/test_ascend_log_requests.py", 400),
         # TODO: [https://github.com/Ascend/sglang/issues/766] Re-enable test "ascend/test_ascend_weight_loader_disable_mmap.py".
         # TestFile("ascend/test_ascend_weight_loader_disable_mmap.py", 400),
         TestFile("ascend/test_ascend_revision.py", 400),

@@ -465,11 +465,6 @@ class AscendAttnBackend(AttentionBackend):
                 )
                 q_len_offset = 0
 
-                # add condition temporarily, will delete after fix cann bug
-                import os
-
-                is_cann_8_2 = os.environ.get("CANN_VERSION", "8.3") == "8.2"
-
                 for q_len in forward_batch.extend_seq_lens_cpu:
                     attn_output[q_len_offset : q_len_offset + q_len] = (
                         torch.ops.npu.npu_fused_infer_attention_score(
@@ -479,12 +474,8 @@ class AscendAttnBackend(AttentionBackend):
                             num_heads=layer.tp_q_head_num,
                             num_key_value_heads=layer.tp_k_head_num,
                             input_layout="BSND",  # todo, TND not supports q_heads!=k_heads
-                            atten_mask=(
-                                self.fia_mask.unsqueeze(0)
-                                if is_cann_8_2
-                                else self.fia_mask
-                            ),
-                            sparse_mode=3,
+                            atten_mask=self.fia_mask.unsqueeze(0),
+                            sparse_mode=3 if q_len != 1 else 0,
                             scale=layer.scaling,
                             next_tokens=0,
                         )[0]

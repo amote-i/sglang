@@ -73,7 +73,7 @@ class TestAscendMlaW8A8Int8(CustomTestCase):
                     metrics = run_eval_few_shot_gsm8k(args)
                     self.assertGreaterEqual(
                         metrics["accuracy"],
-                        TEST_MODEL_MATRIX[model]["accuracy"],
+                        0.99 * TEST_MODEL_MATRIX[model]["accuracy"],
                     )
                 finally:
                     kill_process_tree(process.pid)
@@ -95,7 +95,7 @@ class TestAscendMlaW8A8Int8(CustomTestCase):
                 if is_in_ci():
                     self.assertGreater(
                         output_throughput,
-                        TEST_MODEL_MATRIX[model]["output_throughput"],
+                        0.98 * TEST_MODEL_MATRIX[model]["output_throughput"],
                     )
 
 

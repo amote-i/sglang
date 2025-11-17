@@ -439,8 +439,7 @@ suite_ascend = {
         TestFile("test_abort.py", 400),
         TestFile("openai_server/validation/test_matched_stop.py", 400),
         TestFile("test_server_args.py", 400),
-        # TODO: [https://github.com/Ascend/sglang/issues/763] Re-enable test "test_start_profile.py".
-        # TestFile("test_start_profile.py", 400),
+        TestFile("test_start_profile.py", 400),
         TestFile("openai_server/features/test_reasoning_content.py", 400),
         TestFile("ascend/test_ascend_sleep_on_idle.py", 400),
         TestFile("ascend/test_ascend_bucket_time_to_first_token.py", 400),
@@ -465,7 +464,7 @@ suite_ascend = {
     "daily-test-2-ascend-npu": [
         TestFile("ascend/test_ascend_tp2_bf16.py", 400),
         TestFile("ascend/test_ascend_graph_tp2_bf16.py", 400),
-        # TestFile("ascend/test_ascend_tp2_fia_bf16.py", 400),
+        TestFile("ascend/test_ascend_tp2_fia_bf16.py", 400),
         TestFile("ascend/test_ascend_mla_fia_w8a8int8.py", 400),
         # TestFile("ascend/test_ascend_llm_models_tp2.py", 400),
         TestFile("test_hidden_states.py", 400),
@@ -474,8 +473,7 @@ suite_ascend = {
     ],
     "daily-test-4-ascend-npu": [
         TestFile("ascend/test_ascend_tp4_bf16.py", 400),
-        # TODO: [https://github.com/Ascend/sglang/issues/765] Re-enable test "ascend/test_ascend_mla_w8a8int8.py".
-        # TestFile("ascend/test_ascend_mla_w8a8int8.py", 400),
+        TestFile("ascend/test_ascend_mla_w8a8int8.py", 400),
         TestFile("ascend/test_vlm_models_qwen2_5_vl_3b_instruct.py", 400),
         TestFile("ascend/test_vlm_models_phi4_multimodal_instruct.py", 400),
         TestFile("ascend/test_vlm_models_janus-pro-7b.py", 400),
@@ -514,7 +512,9 @@ suite_ascend = {
         TestFile("ascend_k8s/test_ascend_disaggregation_deepep_k8s_2p1d.py", 400),
     ],
     "per-commit-1-ascend-npu-debug": [
-        TestFile("test_no_overlap_scheduler.py", 400),
+        TestFile("ascend/test_ascend_mla_w8a8int8.py", 400),
+        TestFile("ascend/test_ascend_llm_models_glm_4_9b_chat.py", 400),
+        TestFile("ascend/test_ascend_llm_models_granite_3_0_3b_a800m.py", 400),
     ],
     "per-commit-2-ascend-npu-debug": [],
     "per-commit-4-ascend-npu-debug": [

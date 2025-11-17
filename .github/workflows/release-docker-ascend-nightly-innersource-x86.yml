@@ -13,7 +13,7 @@ on:
       - main
     paths:
       - ".github/workflows/release-docker-ascend-nightly-innersource.yml"
-      - "docker/Dockerfile.npu"
+      - "docker/npu.Dockerfile"
 concurrency:
   group: release-docker-ascend-nightly-innersource-x86-${{ github.ref }}
   cancel-in-progress: true
@@ -81,7 +81,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: docker/Dockerfile.npu
+          file: docker/npu.Dockerfile
           platforms: linux/amd64
           push: ${{ github.repository == 'Ascend/sglang' && github.event_name != 'pull_request' }}
           labels: ${{ steps.meta.outputs.labels }}

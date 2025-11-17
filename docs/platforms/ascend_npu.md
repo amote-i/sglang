@@ -62,22 +62,22 @@ wget -O "${MF_WHL_NAME}" "${MEMFABRIC_URL}" && pip install "./${MF_WHL_NAME}"
 
 #### Pytorch and Pytorch Framework Adaptor on Ascend
 
-Only `torch==2.6.0` is supported currently due to NPUgraph and Triton-on-Ascend's limitation, however a more generalized version will be release by the end of September, 2025.
+Only `torch==2.8.0` is supported currently due to NPUgraph and Triton-on-Ascend's limitation, however a more generalized version will be release by the end of September, 2025.
 
 ```shell
-PYTORCH_VERSION=2.6.0
-TORCHVISION_VERSION=0.21.0
+PYTORCH_VERSION=2.8.0
+TORCHVISION_VERSION=0.23.0
 pip install torch==$PYTORCH_VERSION torchvision==$TORCHVISION_VERSION --index-url https://download.pytorch.org/whl/cpu
 
-PTA_VERSION="v7.1.0.1-pytorch2.6.0"
-PTA_NAME="torch_npu-2.6.0.post1-cp311-cp311-manylinux_2_28_aarch64.whl"
+PTA_VERSION="v7.2.0-pytorch2.8.0"
+PTA_NAME="torch_npu-2.8.0.post1-cp311-cp311-manylinux_2_28_aarch64.whl"
 PTA_URL="https://gitee.com/ascend/pytorch/releases/download/${PTA_VERSION}/${PTA_WHL_NAME}"
 wget -O "${PTA_NAME}" "${PTA_URL}" && pip install "./${PTA_NAME}"
 ```
 
 #### vLLM
 
-vLLM is still a major prerequisite on Ascend NPU. Because of `torch==2.6.0` limitation, only vLLM v0.8.5 is supported.
+vLLM is still a major prerequisite on Ascend NPU. Because of `torch==2.8.0` limitation, only vLLM v0.8.5 is supported.
 
 ```shell
 VLLM_TAG=v0.8.5

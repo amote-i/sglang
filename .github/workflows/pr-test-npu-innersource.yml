@@ -31,7 +31,7 @@ jobs:
       matrix:
         part: [0, 1]
     container:
-      image: swr.cn-southwest-2.myhuaweicloud.com/base_image/ascend-ci/cann:8.2.rc1-a3-ubuntu22.04-py3.11
+      image: swr.cn-southwest-2.myhuaweicloud.com/base_image/ascend-ci/cann:8.3.rc1-a3-ubuntu22.04-py3.11
     steps:
       - name: Pre-config git access token
         run: |
@@ -82,7 +82,7 @@ jobs:
       matrix:
         part: [0, 1, 2]
     container:
-      image: swr.cn-southwest-2.myhuaweicloud.com/base_image/ascend-ci/cann:8.2.rc1-a3-ubuntu22.04-py3.11
+      image: swr.cn-southwest-2.myhuaweicloud.com/base_image/ascend-ci/cann:8.3.rc1-a3-ubuntu22.04-py3.11
     steps:
       - name: Pre-config git access token
         run: |
@@ -128,7 +128,7 @@ jobs:
   #   if: ${{ github.repository == 'Ascend/sglang' || github.event_name == 'pull_request' }}
   #   runs-on: linux-amd64-cpu-0
   #   container:
-  #     image: swr.cn-southwest-2.myhuaweicloud.com/base_image/ascend-ci/cann:8.2.rc1-a3-ubuntu22.04-py3.11
+  #     image: swr.cn-southwest-2.myhuaweicloud.com/base_image/ascend-ci/cann:8.3.rc1-a3-ubuntu22.04-py3.11
   #   steps:
   #     - name: Pre-config git access token
   #       run: |

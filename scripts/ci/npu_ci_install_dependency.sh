@@ -22,11 +22,8 @@ apt update -y && apt install -y \
 update-ca-certificates
 python3 -m ${PIP_INSTALL} --upgrade pip
 
-
 ### Download MemFabricV2
-MF_WHL_NAME="mf_adapter-1.0.0-cp311-cp311-linux_aarch64.whl"
-MEMFABRIC_URL="https://sglang-ascend.obs.cn-east-3.myhuaweicloud.com/sglang/${MF_WHL_NAME}"
-wget -O "${MF_WHL_NAME}" "${MEMFABRIC_URL}" && ${PIP_INSTALL} "./${MF_WHL_NAME}"
+pip install mf-adapter==1.0.0
 
 
 ### Install vLLM
@@ -36,22 +33,23 @@ git clone --depth 1 https://github.com/vllm-project/vllm.git --branch $VLLM_TAG
 
 
 ### Install PyTorch and PTA
-PYTORCH_VERSION=2.6.0
-TORCHVISION_VERSION=0.21.0
+PYTORCH_VERSION=2.8.0
+TORCHVISION_VERSION=0.23.0
 ${PIP_INSTALL} torch==$PYTORCH_VERSION torchvision==$TORCHVISION_VERSION
 
-PTA_VERSION="v7.1.0.1-pytorch2.6.0"
-PTA_NAME="torch_npu-2.6.0.post2+git95d6260-cp311-cp311-linux_aarch64.whl"
-PTA_URL="https://sglang-ascend.obs.cn-east-3.myhuaweicloud.com/ops/torch_npu-2.6.0.post2%2Bgit95d6260-cp311-cp311-linux_aarch64.whl"
+PTA_VERSION="v7.2.0-pytorch2.8.0"
+PTA_NAME="torch_npu-2.8.0.post2+git95d6260-cp311-cp311-linux_aarch64.whl"
+PTA_URL="https://gitcode.com/Ascend/pytorch/releases/download/v7.2.0-pytorch2.8.0/torch_npu-2.8.0-cp311-cp311-manylinux_2_28_aarch64.whl"
 wget -O "${PTA_NAME}" "${PTA_URL}" && ${PIP_INSTALL} "./${PTA_NAME}"
 
+# Update pip
+pip config set global.index-url "https://pypi.tuna.tsinghua.edu.cn/simple/"
+pip config set install.trusted-host "pypi.tuna.tsinghua.edu.cn"
+pip install --upgrade pip
 
-### Install Triton-Ascend
-TRITON_ASCEND_NAME="triton_ascend-3.2.0+gitb0ea0850-cp311-cp311-linux_aarch64.whl"
-TRITON_ASCEND_URL="https://sglang-ascend.obs.cn-east-3.myhuaweicloud.com/sglang/triton_ascend-3.2.0%2Bgitb0ea0850-cp311-cp311-linux_aarch64.whl"
+# ### Install Triton-Ascend
 ${PIP_INSTALL} attrs==24.2.0 numpy==1.26.4 scipy==1.13.1 decorator==5.1.1 psutil==6.0.0 pytest==8.3.2 pytest-xdist==3.6.1 pyyaml pybind11
-wget -O "${TRITON_ASCEND_NAME}" "${TRITON_ASCEND_URL}" && ${PIP_INSTALL} "./${TRITON_ASCEND_NAME}"
-
+pip install triton-ascend==3.2.0rc3
 
 ### Install BiSheng
 BISHENG_NAME="Ascend-BiSheng-toolkit_aarch64.run"

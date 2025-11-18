@@ -19,14 +19,12 @@ ARG ASCEND_CANN_PATH=/usr/local/Ascend/ascend-toolkit
 ARG SGLANG_KERNEL_NPU_TAG=main
 
 # Set environment variables according to architecture
-ARG MEMFABRIC_URL_AMD64="https://sglang-ascend.obs.cn-east-3.myhuaweicloud.com/sglang/mf_adapter-1.0.0-cp311-cp311-linux_x86_64.whl"
 ARG PTA_URL_AMD64="https://gitcode.com/Ascend/pytorch/releases/download/v7.2.0-pytorch2.8.0/torch_npu-2.8.0-cp311-cp311-manylinux_2_28_x86_64.whl"
 
 ARG PTA_URL_ARM64="https://gitcode.com/Ascend/pytorch/releases/download/v7.2.0-pytorch2.8.0/torch_npu-2.8.0-cp311-cp311-manylinux_2_28_aarch64.whl"
 
 RUN if [ "$TARGETARCH" = "amd64" ]; then \
       echo "Using x86_64 dependencies"; \
-      echo "MEMFABRIC_URL=$MEMFABRIC_URL_AMD64" >> /etc/environment_new; \
       echo "PTA_URL=$PTA_URL_AMD64" >> /etc/environment_new; \
     elif [ "$TARGETARCH" = "arm64" ]; then \
       echo "Using aarch64 dependencies"; \
@@ -73,9 +71,9 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # Install dependencies
 # TODO: install from pypi released memfabric
 RUN if [ "$TARGETARCH" = "amd64" ]; then \
-      pip install $MEMFABRIC_URL --no-cache-dir \
+      pip install mf-adapter==1.0.0; \
     elif [ "$TARGETARCH" = "arm64" ]; then \
-      pip install mf-adapter==1.0.0 \
+      pip install mf-adapter==1.0.0; \
     else \
       echo "Unsupported TARGETARCH: $TARGETARCH"; exit 1; \
     fi

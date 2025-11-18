@@ -9,8 +9,7 @@ on:
   workflow_dispatch:
   workflow_call:
   pull_request:
-    branches:
-      - main
+    branches: [ upstream/251031 ]
     paths:
       - ".github/workflows/release-docker-ascend-nightly-innersource.yml"
       - "docker/npu.Dockerfile"

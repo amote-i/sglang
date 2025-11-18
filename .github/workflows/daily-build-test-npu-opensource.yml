@@ -1,43 +1,46 @@
-name: Daily Build Test Innersource (Ascend NPU)
+name: Daily Build Test Opensource (Ascend NPU)
 
 on:
   schedule:
-    - cron: "0 17 * * *" # Trigger the daily build pipeline every 12 hours.
+    - cron: "0 23 * * *" # Trigger the daily build pipeline every 6 hours.
   workflow_dispatch:
   # pull_request:
   #   branches:
   #     - main
   #   paths:
-  #     - ".github/workflows/daily-build-test-npu-innersource.yml"
+  #     - ".github/workflows/daily-build-test-npu-opensource.yml"
 
 concurrency:
-  group: daily-build-test-npu-innersource-${{ github.ref }}
+  group: daily-build-test-npu-opensource-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
 
-  ### Building images from innersource
-  build-innersource-image:
+  ### Using images from upstream daily release
+  sync-opensource-image:
     if: github.repository == 'Ascend/sglang'
-    uses: ./.github/workflows/release-docker-ascend-nightly-innersource.yml
-    secrets: inherit
+    runs-on: self-hosted-x86
+    container:
+      image: quay.io/skopeo/stable:latest
 
-  ### Building x86 images from innersource
-  build-innersource-x86-image:
-    if: github.repository == 'Ascend/sglang'
-    uses: ./.github/workflows/release-docker-ascend-nightly-innersource-x86.yml
-    secrets: inherit
+    steps:
+      - name: docker pull
+        run: |
+          skopeo copy --all --dest-creds ${{ vars.REGISTRY_CN_EAST4_USER }}:${{ secrets.REGISTRY_CN_EAST4_PASSWORD }} \
+          docker://docker.io/lmsysorg/sglang:main-cann8.2.rc1-a3 \
+          docker://${{ vars.REGISTRY_CN_EAST4 }}/base_image/ascend-ci/sglang:main-cann8.2.rc1-a3-pull
 
-  daily-innersource-1-ascend-a3:
-    needs: [ build-innersource-image ]
-    if: ${{ needs.build-innersource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
+
+  daily-opensource-1-ascend-a3:
+    needs: [ sync-opensource-image ]
+    if: ${{ needs.sync-opensource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
     runs-on: linux-aarch64-a3-2
     strategy:
       fail-fast: false
       matrix:
         part: [0, 1]
     container:
-      image: ${{ vars.REGISTRY_HK }}/base_image/ascend-ci/sglang:main
+      image: ${{ vars.REGISTRY_CN_EAST4 }}/base_image/ascend-ci/sglang:main-cann8.2.rc1-a3-pull
     steps:
       - name: Pre-config git access token
         run: |
@@ -49,7 +52,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: 'upstream/251031'
           sparse-checkout: |
             .github
             scripts
@@ -79,16 +81,16 @@ jobs:
           cd test/srt
           python3 run_suite.py --suite daily-test-1-ascend-npu --timeout-per-file 3600 --auto-partition-id ${{ matrix.part }} --auto-partition-size 2
 
-  daily-innersource-2-ascend-a3:
-    needs: [ build-innersource-image ]
-    if: ${{ needs.build-innersource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
+  daily-opensource-2-ascend-a3:
+    needs: [ sync-opensource-image ]
+    if: ${{ needs.sync-opensource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
     runs-on: linux-aarch64-a3-2
     strategy:
       fail-fast: false
       matrix:
         part: [0]
     container:
-      image: ${{ vars.REGISTRY_HK }}/base_image/ascend-ci/sglang:main
+      image: ${{ vars.REGISTRY_CN_EAST4 }}/base_image/ascend-ci/sglang:main-cann8.2.rc1-a3-pull
     steps:
       - name: Pre-config git access token
         run: |
@@ -100,7 +102,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: 'upstream/251031'
           sparse-checkout: |
             .github
             scripts
@@ -130,16 +131,16 @@ jobs:
           cd test/srt
           python3 run_suite.py --suite daily-test-2-ascend-npu --timeout-per-file 3600 --auto-partition-id ${{ matrix.part }} --auto-partition-size 1
 
-  daily-innersource-4-ascend-a3:
-    needs: [ build-innersource-image ]
-    if: ${{ needs.build-innersource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
+  daily-opensource-4-ascend-a3:
+    needs: [ sync-opensource-image ]
+    if: ${{ needs.sync-opensource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
     runs-on: linux-aarch64-a3-4
     strategy:
       fail-fast: false
       matrix:
         part: [0]
     container:
-      image: ${{ vars.REGISTRY_HK }}/base_image/ascend-ci/sglang:main
+      image: ${{ vars.REGISTRY_CN_EAST4 }}/base_image/ascend-ci/sglang:main-cann8.2.rc1-a3-pull
     steps:
       - name: Pre-config git access token
         run: |
@@ -151,7 +152,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: 'upstream/251031'
           sparse-checkout: |
             .github
             scripts
@@ -191,16 +191,16 @@ jobs:
           cd test/srt
           python3 run_suite.py --suite daily-test-4-ascend-npu --timeout-per-file 3600 --auto-partition-id ${{ matrix.part }} --auto-partition-size 1
 
-  daily-innersource-8-ascend-a3:
-    needs: [ build-innersource-image ]
-    if: ${{ needs.build-innersource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
+  daily-opensource-8-ascend-a3:
+    needs: [ sync-opensource-image ]
+    if: ${{ needs.sync-opensource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
     runs-on: linux-aarch64-a3-8
     strategy:
       fail-fast: false
       matrix:
         part: [0]
     container:
-      image: ${{ vars.REGISTRY_HK }}/base_image/ascend-ci/sglang:main
+      image: ${{ vars.REGISTRY_CN_EAST4 }}/base_image/ascend-ci/sglang:main-cann8.2.rc1-a3-pull
     steps:
       - name: Pre-config git access token
         run: |
@@ -211,8 +211,6 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: 'upstream/251031'
 
       - name: Copy dataset
         run: |
@@ -247,16 +245,16 @@ jobs:
           cd test/srt
           python3 run_suite.py --suite daily-test-8-ascend-npu --timeout-per-file 3600 --auto-partition-id ${{ matrix.part }} --auto-partition-size 1
 
-  daily-innersource-16-ascend-a3:
-    needs: [ build-innersource-image ]
-    if: ${{ needs.build-innersource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
+  daily-opensource-16-ascend-a3:
+    needs: [ sync-opensource-image ]
+    if: ${{ needs.sync-opensource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
     runs-on: linux-aarch64-a3-16
     strategy:
       fail-fast: false
       matrix:
         part: [0, 1]
     container:
-      image: ${{ vars.REGISTRY_HK }}/base_image/ascend-ci/sglang:main
+      image: ${{ vars.REGISTRY_CN_EAST4 }}/base_image/ascend-ci/sglang:main-cann8.2.rc1-a3-pull
     steps:
       - name: Pre-config git access token
         run: |
@@ -267,8 +265,6 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: 'upstream/251031'
 
       - name: Copy dataset
         run: |
@@ -303,12 +299,12 @@ jobs:
           cd test/srt
           python3 run_suite.py --suite daily-test-16-ascend-npu --timeout-per-file 7200 --auto-partition-id ${{ matrix.part }} --auto-partition-size 2
 
-  daily-innersource-k8s:
-    needs: [ build-innersource-x86-image ]
-    if: ${{ needs.build-innersource-x86-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
+  daily-opensource-k8s:
+    needs: [ sync-opensource-image ]
+    if: ${{ needs.sync-opensource-image.result == 'success' && (github.repository == 'Ascend/sglang' || github.event_name == 'pull_request') }}
     runs-on: linux-amd64-cpu-0
     container:
-      image: ${{ vars.REGISTRY_HK }}/base_image/ascend-ci/sglang:main-x86
+      image: ${{ vars.REGISTRY_CN_EAST4 }}/base_image/ascend-ci/sglang:main-cann8.2.rc1-a3-pull
     steps:
       - name: Pre-config git access token
         run: |
@@ -327,10 +323,6 @@ jobs:
           cp ~/.cache/modelscope/hub/datasets/otavia/ShareGPT_Vicuna_unfiltered/ShareGPT_V3_unfiltered_cleaned_split.json /tmp
           # copy download through proxy
           curl -o /tmp/test.jsonl -L https://gh-proxy.test.osinfra.cn/https://raw.githubusercontent.com/openai/grade-school-math/master/grade_school_math/data/test.jsonl
-
-      # - name: Print Log Information
-      #   run: |
-      #     bash scripts/ci/log_print.sh
 
       - name: Run test
         timeout-minutes: 300
@@ -362,26 +354,26 @@ jobs:
   bulid-test-npu-finish:
     if: always()
     needs:
-      - daily-innersource-1-ascend-a3
-      - daily-innersource-2-ascend-a3
-      - daily-innersource-4-ascend-a3
-      - daily-innersource-8-ascend-a3
-      - daily-innersource-16-ascend-a3
-      - daily-innersource-k8s
+      - daily-opensource-1-ascend-a3
+      - daily-opensource-2-ascend-a3
+      - daily-opensource-4-ascend-a3
+      - daily-opensource-8-ascend-a3
+      - daily-opensource-16-ascend-a3
+      - daily-opensource-k8s
     runs-on: linux-amd64-cpu-1
     container:
       image: docker.m.daocloud.io/ubuntu:22.04
     steps:
-       - name: Check all dependent job statuses
-         run: |
-           #!/bin/sh
-           results="${{ join(needs.*.result, ' ') }}"
-           set -- $results
-           for result in "$@"; do
-             if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
-               echo "Job failed with result: $result"
-               exit 1
-             fi
-           done
-           echo "All jobs completed successfully"
-           exit 0
+      - name: Check all dependent job statuses
+        run: |
+          #!/bin/sh
+          results="${{ join(needs.*.result, ' ') }}"
+          set -- $results
+          for result in "$@"; do
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              echo "Job failed with result: $result"
+              exit 1
+            fi
+          done
+          echo "All jobs completed successfully"
+          exit 0

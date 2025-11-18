@@ -1,4 +1,3 @@
-import os
 import unittest
 from types import SimpleNamespace
 from urllib.parse import urlparse
@@ -15,54 +14,31 @@ from sglang.test.test_utils import (
 )
 
 TEST_MODEL_MATRIX = {
-    "/root/.cache/modelscope/hub/models/vllm-ascend/DeepSeek-R1-0528-W8A8": {
-        "accuracy": 0.95,
-        "latency": 1000,
-        "output_throughput": 5,
+    "Qwen/Qwen2.5-7B-Instruct": {
+        "accuracy": 0.85,
+        "latency": 150,
+        "output_throughput": 30,
     },
 }
 
 
-class TestAscendDeepEP(CustomTestCase):
+class TestAscendMhaHicache(CustomTestCase):
 
     @classmethod
     def setUpClass(cls):
         cls.models = TEST_MODEL_MATRIX.keys()
         cls.base_url = DEFAULT_URL_FOR_TEST
         cls.url = urlparse(DEFAULT_URL_FOR_TEST)
-
         cls.common_args = [
             "--trust-remote-code",
-            "--attention-backend",
-            "ascend",
-            "--quantization",
-            "w8a8_int8",
             "--mem-fraction-static",
             0.8,
-            "--max-running-requests",
-            32,
-            "--disable-radix-cache",
-            "--chunked-prefill-size",
-            32768,
-            "--disable-cuda-graph",
-            "--tp-size",
-            16,
-            "--dp-size",
-            1,
-            "--ep-size",
-            16,
-            "--moe-a2a-backend",
-            "deepep",
-            "--deepep-mode",
-            "auto",
+            "--attention-backend",
+            "ascend",
+            "--enable-hierarchical-cache",
+            "--hicache-ratio",
+            1.2,
         ]
-
-        cls.extra_envs = {
-            "HCCL_BUFFSIZE": "1024",
-            "SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK": "32",
-            "SGLANG_NPU_USE_MLAPO": "1",
-        }
-        os.environ.update(cls.extra_envs)
 
     def test_a_gsm8k(self):
         for model in self.models:
@@ -72,7 +48,7 @@ class TestAscendDeepEP(CustomTestCase):
                 process = popen_launch_server(
                     model,
                     self.base_url,
-                    timeout=1500,
+                    timeout=DEFAULT_TIMEOUT_FOR_SERVER_LAUNCH,
                     other_args=[
                         *self.common_args,
                     ],
@@ -82,7 +58,7 @@ class TestAscendDeepEP(CustomTestCase):
                     args = SimpleNamespace(
                         num_shots=5,
                         data_path=None,
-                        num_questions=200,
+                        num_questions=1319,
                         max_new_tokens=512,
                         parallel=128,
                         host=f"http://{self.url.hostname}",
@@ -111,11 +87,11 @@ class TestAscendDeepEP(CustomTestCase):
 
                 print(f"##=== {model} throughput: {output_throughput} ===##")
 
-                # if is_in_ci():
-                #     self.assertGreater(
-                #         output_throughput,
-                #         TEST_MODEL_MATRIX[model]["output_throughput"],
-                #     )
+                if is_in_ci():
+                    self.assertGreater(
+                        output_throughput,
+                        TEST_MODEL_MATRIX[model]["output_throughput"],
+                    )
 
 
 if __name__ == "__main__":

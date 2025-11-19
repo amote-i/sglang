@@ -1397,6 +1397,9 @@ class ScheduleBatch(ScheduleBatchDisaggregationDecodeMixin):
         input_ids = torch.cat([self.input_ids, running_batch.input_ids])
         out_cache_loc = torch.cat([self.out_cache_loc, running_batch.out_cache_loc])
 
+        logger.debug(
+            f"--enable-mix-chunk, prefill_batch_size = {len(self.seq_lens)}, decode_batch_size = {running_bs}"
+        )
         self.merge_batch(running_batch)
         self.input_ids = input_ids
         self.out_cache_loc = out_cache_loc

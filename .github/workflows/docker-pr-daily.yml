@@ -76,7 +76,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: docker/npu.Dockerfile
+          file: docker/pr.Dockerfile
           platforms: linux/arm64
           push: ${{ github.repository == 'Ascend/sglang' && github.event_name != 'pull_request' }}
           labels: ${{ steps.meta.outputs.labels }}

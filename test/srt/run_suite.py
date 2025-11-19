@@ -506,13 +506,14 @@ suite_ascend = {
     "daily-test-16-ascend-npu": [
         TestFile("ascend/test_ascend_disable_chunked_prefix_cache.py", 400),
         TestFile("ascend/test_ascend_disable_shared_expoerts_fusion.py", 400),
-        TestFile("ascend/test_ascend_deepep.py", 400),
+        TestFile("ascend/test_ascend_deepep_mtp.py", 400),
         TestFile("ep/test_eplb.py", 400),
         TestFile("ascend/test_ascend_load_balance_method.py", 400),
         TestFile("ascend/test_ascend_eplb_algorithm.py", 400),
         TestFile("ascend/test_ascend_llm_models_grok.py", 400),
         TestFile("ascend/test_ascend_llm_models_XVERSE.py", 400),
-        TestFile("ascend/test_ascend_deepseek_mtp.py", 400),
+        # Merge with the ascend/test_ascend_deepep_mtp.py
+        # TestFile("ascend/test_ascend_deepseek_mtp.py", 400),
     ],
     "pr-test-npu-innersource-k8s": [
         TestFile("ascend_k8s/test_ascend_disaggregation_deepep_k8s_2p1d.py", 400),

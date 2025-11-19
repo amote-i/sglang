@@ -62,14 +62,8 @@ RUN pip install torch==$PYTORCH_VERSION torchvision==$TORCHVISION_VERSION --inde
     && wget ${PTA_URL} && pip install $(basename ${PTA_URL}) --no-cache-dir \
     && python3 -m pip install --no-cache-dir attrs==24.2.0 numpy==1.26.4 scipy==1.13.1 decorator==5.1.1 psutil==6.0.0 pytest==8.3.2 pytest-xdist==3.6.1 pyyaml pybind11
 
-# Install from test.pypi released triton-ascend
-RUN pip install \
-    --timeout 60 \
-    --retries 3 \
-    -i https://test.pypi.org/simple/ \
-    "triton-ascend < 3.2.0rc" \
-    --pre \
-    --no-cache-dir
+# Install from pypi released triton-ascend
+RUN pip install triton-ascend==3.2.0rc4
 
 # Install SGLang
 RUN mkdir /workspace/sglang

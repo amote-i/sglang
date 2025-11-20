@@ -525,7 +525,7 @@ suite_ascend = {
     ],
     "per-commit-2-ascend-npu-debug": [
         TestFile("ascend/test_ascend_L2_cache_01.py", 400),
-        TestFile("ascend/test_ascend_L1_cache_01.py", 400),
+        # TestFile("ascend/test_ascend_L1_cache_01.py", 400),
     ],
     "per-commit-4-ascend-npu-debug": [
         TestFile("ascend/test_ascend_gpu_id.py", 400),

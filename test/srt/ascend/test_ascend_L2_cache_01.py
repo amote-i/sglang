@@ -26,19 +26,16 @@ class TestL2Cache(CustomTestCase):
             "--tp-size",
             2,
         ]
-        other_args = (
-            common_args
-            + (
-                [
-                    "--attention-backend",
-                    "ascend",
-                    "--disable-cuda-graph",
-                ]
-                if is_npu()
-                else []
-            )
+        other_args = common_args + (
+            [
+                "--attention-backend",
+                "ascend",
+                "--disable-cuda-graph",
+            ]
+            if is_npu()
+            else []
         )
-        
+
         cls.process = popen_launch_server(
             cls.model,
             cls.base_url,
@@ -64,9 +61,11 @@ class TestL2Cache(CustomTestCase):
             )
             self.assertEqual(response.status_code, 200)
             if i == 0:
-              self.assertEqual(int(response.json()["meta_info"]["cached_tokens"]), 0)
+                self.assertEqual(int(response.json()["meta_info"]["cached_tokens"]), 0)
             else:
-              self.assertGreater(int(response.json()["meta_info"]["cached_tokens"]), 0)
+                self.assertGreater(
+                    int(response.json()["meta_info"]["cached_tokens"]), 0
+                )
 
 
 if __name__ == "__main__":

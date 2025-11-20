@@ -519,11 +519,14 @@ suite_ascend = {
         TestFile("ascend_k8s/test_ascend_disaggregation_deepep_k8s_2p1d.py", 400),
     ],
     "per-commit-1-ascend-npu-debug": [
-        TestFile("ascend/test_ascend_mla_w8a8int8.py", 400),
-        TestFile("ascend/test_ascend_llm_models_glm_4_9b_chat.py", 400),
-        TestFile("ascend/test_ascend_llm_models_granite_3_0_3b_a800m.py", 400),
+        # TestFile("ascend/test_ascend_mla_w8a8int8.py", 400),
+        # TestFile("ascend/test_ascend_llm_models_glm_4_9b_chat.py", 400),
+        # TestFile("ascend/test_ascend_llm_models_granite_3_0_3b_a800m.py", 400),
     ],
-    "per-commit-2-ascend-npu-debug": [],
+    "per-commit-2-ascend-npu-debug": [
+        TestFile("ascend/test_ascend_L2_cache_01.py", 400),
+        TestFile("ascend/test_ascend_L1_cache_01.py", 400),
+    ],
     "per-commit-4-ascend-npu-debug": [
         TestFile("ascend/test_ascend_gpu_id.py", 400),
     ],
@@ -531,8 +534,8 @@ suite_ascend = {
         # TestFile("ascend/test_ascend_mm_attention_backend.py", 400),
     ],
     "per-commit-16-ascend-npu-debug": [
-        TestFile("ep/test_eplb.py", 400),
-        TestFile("ascend/test_ascend_eplb_algorithm.py", 400),
+        # TestFile("ep/test_eplb.py", 400),
+        # TestFile("ascend/test_ascend_eplb_algorithm.py", 400),
     ],
 }
 

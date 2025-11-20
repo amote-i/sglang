@@ -216,10 +216,8 @@ class TestSkipTokenizerInit(CustomTestCase):
 class TestSkipTokenizerInitVLM(TestSkipTokenizerInit):
     @classmethod
     def setUpClass(cls):
-        if is_npu():
-            cls.image_url = "https://gh.llkk.cc/https://github.com/sgl-project/sglang/blob/main/test/lang/example_image.png?raw=true"
-        else:
-            cls.image_url = DEFAULT_IMAGE_URL
+        image_path = DEFAULT_IMAGE_URL
+        cls.image_url = ("https://gh.llkk.cc/" + image_path) if is_npu() else image_path
         response = requests.get(cls.image_url)
         cls.image = Image.open(BytesIO(response.content))
         if is_npu():

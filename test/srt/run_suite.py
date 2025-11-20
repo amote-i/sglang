@@ -522,6 +522,7 @@ suite_ascend = {
         # TestFile("ascend/test_ascend_mla_w8a8int8.py", 400),
         # TestFile("ascend/test_ascend_llm_models_glm_4_9b_chat.py", 400),
         # TestFile("ascend/test_ascend_llm_models_granite_3_0_3b_a800m.py", 400),
+        TestFile("test_skip_tokenizer_init.py", 400),
     ],
     "per-commit-2-ascend-npu-debug": [
         TestFile("ascend/test_ascend_L2_cache_01.py", 400),

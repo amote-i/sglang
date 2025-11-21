@@ -41,7 +41,8 @@ from sglang.srt.utils import is_npu, replace_submodule
 from sglang.srt.utils.hf_transformers_utils import AutoConfig
 
 if is_npu():
-    from torch_npu.contrib import transfer_to_npu
+    from torch_npu.contrib import transfer_to_npu  # noqa: F401
+
     torch.cuda.is_available = lambda: False
 logger = logging.getLogger(__name__)
 

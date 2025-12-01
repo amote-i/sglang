@@ -115,6 +115,7 @@ from sglang.srt.metrics.func_timer import enable_func_timer
 from sglang.srt.parser.reasoning_parser import ReasoningParser
 from sglang.srt.server_args import PortArgs, ServerArgs
 from sglang.srt.utils import (
+    WorkerExitReporter,
     add_api_key_middleware,
     add_prometheus_middleware,
     delete_directory,
@@ -1365,6 +1366,11 @@ def launch_server(
             scheduler_info=scheduler_info,
         )
     )
+
+    router_url = getattr(server_args, "router_url", None)
+    if router_url:
+        worker_url = f"http://{server_args.host}:{server_args.port}"
+        WorkerExitReporter(router_url, worker_url)
 
     # Pass additional arguments to the lifespan function.
     # They will be used for additional initialization setups.

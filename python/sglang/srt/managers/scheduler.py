@@ -271,6 +271,7 @@ class Scheduler(
         self.enable_hierarchical_cache = server_args.enable_hierarchical_cache
         self.enable_hicache_storage = server_args.hicache_storage_backend is not None
         self.page_size = server_args.page_size
+        self.need_prefetch_storage = self.enable_hicache_storage
 
         self.attn_tp_rank, self.attn_tp_size, self.attn_dp_rank = (
             compute_dp_attention_world_info(
@@ -728,6 +729,31 @@ class Scheduler(
                     hicache_size=server_args.hicache_size,
                     hicache_write_policy=server_args.hicache_write_policy,
                     enable_kv_cache_events=self.enable_kv_cache_events,
+                )
+            elif (
+                self.enable_hierarchical_cache
+                and self.server_args.hicache_storage_backend == "memcache"
+            ):
+                from sglang.srt.mem_cache.ascend_radix_cache import AscendHiRadixCache
+
+                self.tree_cache = AscendHiRadixCache(
+                    req_to_token_pool=self.req_to_token_pool,
+                    token_to_kv_pool_allocator=self.token_to_kv_pool_allocator,
+                    tp_cache_group=(
+                        self.attn_tp_cpu_group
+                        if self.server_args.enable_dp_attention
+                        else self.tp_cpu_group
+                    ),
+                    page_size=self.page_size,
+                    eviction_policy=server_args.radix_eviction_policy,
+                    enable_metrics=self.enable_metrics,
+                    hicache_storage_backend=server_args.hicache_storage_backend,
+                    is_eagle=self.spec_algorithm.is_eagle(),
+                    device_id=self.gpu_id,
+                )
+                self.need_prefetch_storage = False
+                self.tp_worker.register_hicache_layer_transfer_counter(
+                    self.tree_cache.cache_controller.layer_done_counter
                 )
             elif self.enable_hierarchical_cache:
                 self.tree_cache = HiRadixCache(
@@ -1395,7 +1421,7 @@ class Scheduler(
             self.handle_generate_request(tokenized_req)
 
     def _prefetch_kvcache(self, req: Req):
-        if self.enable_hicache_storage:
+        if self.enable_hicache_storage and self.need_prefetch_storage:
             req.init_next_round_input(self.tree_cache)
             if req.last_node.backuped:
                 # only to initiate the prefetch if the last node is backuped
@@ -1753,6 +1779,7 @@ class Scheduler(
             self.chunked_prefill_size,
             running_bs if self.is_mixed_chunk else 0,
             self.priority_scheduling_preemption_threshold,
+            self.enable_hierarchical_cache,
         )
 
         if self.chunked_req is not None:

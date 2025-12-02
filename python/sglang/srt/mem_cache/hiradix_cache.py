@@ -8,6 +8,7 @@ from typing import List, Optional
 import torch
 
 from sglang.srt.managers.cache_controller import HiCacheController, PrefetchOperation
+from sglang.srt.managers.schedule_batch import Req
 from sglang.srt.mem_cache.allocator import BaseTokenToKVPoolAllocator
 from sglang.srt.mem_cache.base_prefix_cache import MatchResult
 from sglang.srt.mem_cache.memory_pool import (
@@ -475,8 +476,12 @@ class HiRadixCache(RadixCache):
         self,
         last_node: TreeNode,
         host_hit_length: int,
+        req: Req,
         mem_quota: Optional[int] = None,
     ):
+        if host_hit_length <= 0:
+            return None, req.last_node
+
         _ = host_hit_length  # unused, but kept for compatibility
         if last_node.evicted:
             loading_values = self.load_back(last_node, mem_quota)

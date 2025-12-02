@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import atexit
 import builtins
 import ctypes
 import dataclasses
@@ -3598,45 +3597,3 @@ def calc_diff(x, y):
     denominator = (x * x + y * y).sum()
     sim = 2 * (x * y).sum() / denominator
     return 1 - sim
-
-
-class WorkerExitReporter:
-    def __init__(self, router_url: str, worker_url: str):
-        self.router_url = router_url
-        self.worker_url = worker_url
-        self.delete_called = False
-        self._setup_exit_handlers()
-
-    def _setup_exit_handlers(self):
-        atexit.register(self._report_exit)
-        if threading.current_thread() is threading.main_thread():
-            logger.info(
-                "Main thread registered SIGCHLD handler,while child process exits will patch worker status to router"
-            )
-            signal.signal(signal.SIGCHLD, self._signal_handler)
-
-    def _signal_handler(self, signum, frame):
-        pid = os.getpid()
-        logger.warning(f"Child process {pid} terminated with signum {signum}")
-        self._report_exit()
-        kill_process_tree(pid)
-
-    def _report_exit(self):
-        if self.delete_called:
-            return
-        self.delete_called = True
-        try:
-            # Report that this worker is no longer healthy.
-            logger.info(f"Reporting worker exit for {self.worker_url}")
-            encoded_url = requests.utils.quote(self.worker_url, safe="")
-            response = requests.patch(
-                f"{self.router_url}/workers/{encoded_url}/health",
-                json={"healthy": False},
-                timeout=5,
-            )
-            if response.status_code == 200:
-                logger.info(f"Successfully queued worker exit for {self.worker_url}")
-            else:
-                logger.error(f"Failed to call PATCH endpoint: {response.status_code}")
-        except Exception as e:
-            logger.error(f"Failed to report worker exit: {e}")

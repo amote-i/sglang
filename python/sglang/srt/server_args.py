@@ -229,12 +229,12 @@ class ServerArgs:
     # HTTP server
     host: str = "127.0.0.1"
     port: int = 30000
-    router_url: Optional[str] = None
     grpc_mode: bool = False
     skip_server_warmup: bool = False
     warmups: Optional[str] = None
     nccl_port: Optional[int] = None
     checkpoint_engine_wait_weights_before_ready: bool = False
+    router_url: Optional[str] = None
 
     # Quantization and data type
     dtype: str = "auto"
@@ -1928,12 +1928,6 @@ class ServerArgs:
             help="The port of the HTTP server.",
         )
         parser.add_argument(
-            "--router-url",
-            type=str,
-            default=ServerArgs.router_url,
-            help="Router URL for worker exit reporting (e.g., http://router:8000)",
-        )
-        parser.add_argument(
             "--grpc-mode",
             action="store_true",
             help="If set, use gRPC server instead of HTTP server.",
@@ -1961,6 +1955,12 @@ class ServerArgs:
             action="store_true",
             help="If set, the server will wait for initial weights to be loaded via checkpoint-engine or other update methods "
             "before serving inference requests.",
+        )
+        parser.add_argument(
+            "--router-url",
+            type=str,
+            default=ServerArgs.router_url,
+            help="Router URL for worker exit reporting (e.g., http://router:8000)",
         )
 
         # Quantization and data type

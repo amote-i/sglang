@@ -227,6 +227,7 @@ class UnquantizedFusedMoEMethod(FusedMoEMethodBase, CustomOp):
         )
         self.runner = MoeRunner(backend, moe_runner_config)
 
+    # [INFO] 问题出现在这里
     def apply(
         self,
         layer: torch.nn.Module,
@@ -394,6 +395,9 @@ class UnquantizedFusedMoEMethod(FusedMoEMethodBase, CustomOp):
         if layer.w13_weight.shape[-1] == layer.hidden_size:
             w13 = layer.w13_weight.transpose(1, 2)
             w2 = layer.w2_weight.transpose(1, 2)
+        else:
+            w13 = layer.w13_weight.transpose(1, 2)
+            w2 = layer.w2_weight.transpose(1, 2)
 
         # gmm1: gate_up_proj
         hidden_states = torch_npu.npu_grouped_matmul(
@@ -407,6 +411,7 @@ class UnquantizedFusedMoEMethod(FusedMoEMethodBase, CustomOp):
         )[0]
 
         # act_fn:
+        # [INFO] 这里报错了
         if self.moe_runner_config.activation == "silu":
             hidden_states = torch_npu.npu_swiglu(hidden_states)
         else:

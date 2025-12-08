@@ -529,7 +529,7 @@ class GroupCoordinator:
         if self.world_size == 1:
             return input_
 
-        if input_.is_cpu:
+        if is_cpu():
             if is_shm_available(input_.dtype, self.world_size, self.local_size):
                 torch.ops.sgl_kernel.shm_allreduce(input_, REDUCE_OP_SUM)
             else:

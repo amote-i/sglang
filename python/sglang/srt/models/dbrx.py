@@ -100,13 +100,13 @@ class DbrxExperts(nn.Module):
     ):
         super().__init__()
         self.tp_size = get_tensor_model_parallel_world_size()
-        self.num_experts = config.ffn_config.moe_num_experts
-        self.hidden_size = config.ffn_config.ffn_hidden_size
         self.num_total_experts = config.ffn_config.moe_num_experts
         self.top_k = config.ffn_config.moe_top_k
         self.d_model = config.d_model
         self.intermediate_size = config.ffn_config.ffn_hidden_size // self.tp_size
         self.use_triton_kernels = get_moe_runner_backend().is_triton_kernels()
+        self.num_experts = config.ffn_config.moe_num_experts
+        self.hidden_size = config.ffn_config.ffn_hidden_size
         self.moe_runner_config = MoeRunnerConfig(inplace=True)
         if quant_config is None:
             self.quant_method: Optional[QuantizeMethodBase] = UnquantizedFusedMoEMethod(
@@ -206,8 +206,7 @@ class DbrxExperts(nn.Module):
         final_hidden_states = self.quant_method.apply(
             layer=self,
             dispatch_output=dispatch_output,
-        )
-        final_hidden_states = final_hidden_states.hidden_states
+        ).hidden_states
 
         if self.tp_size > 1:
             final_hidden_states = tensor_model_parallel_all_reduce(final_hidden_states)

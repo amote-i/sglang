@@ -188,7 +188,9 @@ class DbrxExperts(nn.Module):
 
         if is_npu():
             dispatch_output = StandardDispatchOutput(
-                hidden_states=hidden_states, topk_output=topk_output
+                hidden_states=hidden_states,
+                topk_output=topk_output,
+                hidden_states_scale=None,
             )
             final_hidden_states = self.quant_method.apply(
                 layer=self,

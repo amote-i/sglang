@@ -102,6 +102,26 @@ class DbrxExperts(nn.Module):
         self.d_model = config.d_model
         self.intermediate_size = config.ffn_config.ffn_hidden_size // self.tp_size
 
+        if is_npu():
+            from sglang.srt.layers.moe import get_moe_runner_backend
+            from sglang.srt.layers.quantization.base_config import QuantizeMethodBase
+            from sglang.srt.layers.quantization.unquant import UnquantizedFusedMoEMethod
+
+            self.use_triton_kernels = get_moe_runner_backend().is_triton_kernels()
+            self.num_experts = config.ffn_config.moe_num_experts
+            self.hidden_size = config.ffn_config.ffn_hidden_size
+            self.moe_runner_config = MoeRunnerConfig(inplace=True)
+            if quant_config is None:
+                self.quant_method: Optional[QuantizeMethodBase] = (
+                    UnquantizedFusedMoEMethod(self.use_triton_kernels)
+                )
+                self.quant_method.create_moe_runner(self, self.moe_runner_config)
+            else:
+                self.quant_method: Optional[QuantizeMethodBase] = (
+                    quant_config.get_quant_method(self, prefix)
+                )
+            assert self.quant_method is not None
+
         if params_dtype is None:
             params_dtype = torch.get_default_dtype()
         self.params_dtype = params_dtype

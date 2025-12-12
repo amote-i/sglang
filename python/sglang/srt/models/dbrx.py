@@ -48,7 +48,7 @@ from sglang.srt.model_loader.weight_utils import (
     default_weight_loader,
     maybe_remap_kv_scale_name,
 )
-from sglang.srt.utils import add_prefix, set_weight_attrs
+from sglang.srt.utils import add_prefix, is_cuda, is_npu, set_weight_attrs
 
 
 class DbrxRouter(nn.Module):
@@ -111,12 +111,19 @@ class DbrxExperts(nn.Module):
             renormalize=True,
         )
         self.moe_runner_config = MoeRunnerConfig(inplace=True)
+
+        if is_npu():
+            available_device = "npu"
+        elif is_cuda():
+            available_device = "cuda"
+        else:
+            available_device = "cpu"
         self.ws = nn.Parameter(
             torch.empty(
                 self.num_total_experts,
                 2 * self.intermediate_size,
                 self.d_model,
-                device="cuda",
+                device=available_device,
                 dtype=self.params_dtype,
             )
         )
@@ -125,7 +132,7 @@ class DbrxExperts(nn.Module):
                 self.num_total_experts,
                 self.d_model,
                 self.intermediate_size,
-                device="cuda",
+                device=available_device,
                 dtype=self.params_dtype,
             )
         )

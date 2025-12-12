@@ -423,9 +423,8 @@ class UnquantizedFusedMoEMethod(FusedMoEMethodBase, CustomOp):
         )
 
         expert_tokens = expert_tokens.to(torch.int64)
-        if layer.w13_weight.shape[-1] == layer.hidden_size:
-            w13 = layer.w13_weight.transpose(1, 2)
-            w2 = layer.w2_weight.transpose(1, 2)
+        w13 = layer.w13_weight.transpose(1, 2)
+        w2 = layer.w2_weight.transpose(1, 2)
 
         # gmm1: gate_up_proj
         hidden_states = torch_npu.npu_grouped_matmul(

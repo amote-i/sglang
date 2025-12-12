@@ -139,7 +139,7 @@ class DbrxExperts(nn.Module):
             available_device = "cuda"
         else:
             available_device = "cpu"
-        self.ws = nn.Parameter(
+        self.w13_weight = nn.Parameter(
             torch.empty(
                 self.num_total_experts,
                 2 * self.intermediate_size,
@@ -148,7 +148,7 @@ class DbrxExperts(nn.Module):
                 dtype=self.params_dtype,
             )
         )
-        self.w2s = nn.Parameter(
+        self.w2_weight = nn.Parameter(
             torch.empty(
                 self.num_total_experts,
                 self.d_model,
@@ -159,13 +159,13 @@ class DbrxExperts(nn.Module):
         )
 
         set_weight_attrs(
-            self.ws,
+            self.w13_weight,
             {
                 "weight_loader": self.weight_loader,
             },
         )
         set_weight_attrs(
-            self.w2s,
+            self.w2_weight,
             {
                 "weight_loader": self.weight_loader,
             },
@@ -219,8 +219,8 @@ class DbrxExperts(nn.Module):
         else:
             final_hidden_states = fused_moe(
                 hidden_states,
-                self.ws,
-                self.w2s,
+                self.w13_weight,
+                self.w2_weight,
                 topk_output,
                 self.moe_runner_config,
             )
@@ -471,7 +471,7 @@ class DbrxForCausalLM(nn.Module):
     def load_weights(self, weights: Iterable[Tuple[str, torch.Tensor]]):
         expert_params_mapping = [
             (
-                "ws" if weight_name in ["w1", "v1"] else "w2s",
+                "w13_weight" if weight_name in ["w1", "v1"] else "w2_weight",
                 f"experts.mlp.{weight_name}",
             )
             for weight_name in ["w1", "v1", "w2"]

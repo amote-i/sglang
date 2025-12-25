@@ -177,6 +177,7 @@ class DbrxExperts(nn.Module):
         # router_logits: (num_tokens, n_experts)
         router_logits = self.router(hidden_states)
         topk_output = self.topk(hidden_states, router_logits)
+        # 调用点01
         final_hidden_states = fused_moe(
             hidden_states,
             self.ws,

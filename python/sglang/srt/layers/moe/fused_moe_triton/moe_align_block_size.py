@@ -10,6 +10,7 @@ from sglang.srt.utils import is_cuda, is_hip
 _is_cuda = is_cuda()
 _is_hip = is_hip()
 
+# [TRACE] 按正常来说，不应该走到这里
 if _is_cuda or _is_hip:
     from sgl_kernel import moe_align_block_size as sgl_moe_align_block_size
 
@@ -72,6 +73,7 @@ def moe_align_block_size(
         (num_experts + 2,), dtype=torch.int32, device=topk_ids.device
     )
 
+    # 调用点06：报错
     sgl_moe_align_block_size(
         topk_ids,
         num_experts + 1,

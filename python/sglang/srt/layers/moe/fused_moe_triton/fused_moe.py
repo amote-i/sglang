@@ -87,6 +87,7 @@ def inplace_fused_experts(
     gemm1_limit: Optional[float] = None,
     filter_expert: bool = True,
 ) -> None:
+    # 调用点04
     fused_experts_impl(
         hidden_states,
         w1,
@@ -287,6 +288,7 @@ def fused_experts(
     )
     if moe_runner_config.inplace:
         assert not moe_runner_config.no_combine, "no combine + inplace makes no sense"
+        # 调用点03
         torch.ops.sglang.inplace_fused_experts(
             hidden_states,
             w1,
@@ -515,6 +517,7 @@ def fused_experts_impl(
         curr_topk_ids = topk_ids[begin_chunk_idx:end_chunk_idx]
         curr_topk_weights = topk_weights[begin_chunk_idx:end_chunk_idx]
 
+        # 调用点05
         sorted_token_ids, expert_ids, num_tokens_post_padded = moe_align_block_size(
             curr_topk_ids, config["BLOCK_SIZE_M"], E
         )
@@ -753,6 +756,7 @@ def fused_moe(
     - torch.Tensor: The output tensor after applying the MoE layer.
     """
 
+    # 调用点02
     return fused_experts(
         hidden_states,
         w1,

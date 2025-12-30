@@ -76,7 +76,7 @@ class SchedulerPPMixin:
                 self.last_batch = self.last_mbs[mb_id]
                 next_first_rank_mb_id = (mb_id + self.pp_size) % self.pp_loop_size
                 next_mb_id = (mb_id + 1) % self.pp_loop_size
-                req_id = 0
+                req_id = None
                 with torch.profiler.record_function("recv_requests"):
                     recv_reqs = self.recv_requests()
                     if recv_reqs:
@@ -144,9 +144,9 @@ class SchedulerPPMixin:
                             )
 
                 self.pp_outputs = next_pp_outputs
-                if counter % 100 == 0:
+                if req_id is not None:
                     print(
-                        f"###### pp: {self.pp_rank}\ttp: {self.tp_rank}\treq_id: {req_id}"
+                        f"###### pp: {self.pp_rank}\ttp: {self.tp_rank}\tcounter: {counter}"
                     )
 
             # When the server is idle, self-check and re-init some states

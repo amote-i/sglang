@@ -13,13 +13,15 @@ if TYPE_CHECKING:
     )
     from sglang.srt.layers.quantization.base_config import QuantizationConfig
 
+enable_eplb = False  # Default to False for now
+
 
 def npu_fused_experts(
     hidden_states: torch.Tensor,
-    w13: torch.Tensor,
-    w13_scale: torch.Tensor,
-    w2: torch.Tensor,
-    w2_scale: torch.Tensor,
+    w13: torch.Tensor | list[torch.Tensor],
+    w13_scale: torch.Tensor | list[torch.Tensor],
+    w2: torch.Tensor | list[torch.Tensor],
+    w2_scale: torch.Tensor | list[torch.Tensor],
     topk_weights: torch.Tensor,
     topk_ids: torch.Tensor,
     top_k: int,
@@ -35,7 +37,7 @@ def npu_fused_experts(
     if len(original_shape) == 3:
         hidden_states = hidden_states.view(-1, hidden_states.shape[-1])
     num_tokens = hidden_states.shape[0]
-    num_experts = w13.shape[0]
+    num_experts = len(w13) if isinstance(w13, list) else w13.shape[0]
     row_idx_len = num_tokens * top_k
     row_idx = (
         torch.arange(0, row_idx_len, dtype=torch.int32, device=topk_weights.device)
@@ -55,8 +57,13 @@ def npu_fused_experts(
     # gmm1: gate_up_proj
     if not use_wna16:
         hidden_states, pertoken_scale = torch.ops.npu.npu_dynamic_quant(hidden_states)
+        w13_scale = (
+            [item.to(scale_dtype) for item in w13_scale]
+            if isinstance(w13_scale, list)
+            else w13_scale.to(scale_dtype)
+        )
         scale_args13 = {
-            "scale": [w13_scale.to(scale_dtype)],
+            "scale": [w13_scale],
             "per_token_scale": [pertoken_scale],
         }
     else:
@@ -65,9 +72,10 @@ def npu_fused_experts(
             "antiquant_offset": [w13_offset],
         }
 
+    w13 = w13 if isinstance(w13, list) else [w13]
     hidden_states = torch.ops.npu.npu_grouped_matmul(
         x=[hidden_states],
-        weight=[w13],
+        weight=w13,
         **scale_args13,
         split_item=2,
         group_list_type=0,
@@ -79,17 +87,22 @@ def npu_fused_experts(
     hidden_states = torch.ops.npu.npu_swiglu(hidden_states)
     if not use_wna16:
         hidden_states, pertoken_scale = torch.ops.npu.npu_dynamic_quant(hidden_states)
-
+        w2_scale = (
+            [item.to(scale_dtype) for item in w2_scale]
+            if isinstance(w2_scale, list)
+            else w2_scale.to(scale_dtype)
+        )
         scale_args2 = {
-            "scale": [w2_scale.to(scale_dtype)],
+            "scale": [w2_scale],
             "per_token_scale": [pertoken_scale],
         }
     else:
         scale_args2 = {"antiquant_scale": [w2_scale], "antiquant_offset": [w2_offset]}
     # gmm2: down_proj
+    w2 = w2 if isinstance(w2, list) else [w2]
     hidden_states = torch.ops.npu.npu_grouped_matmul(
         x=[hidden_states],
-        weight=[w2],
+        weight=w2,
         **scale_args2,
         split_item=2,
         group_list_type=0,
@@ -171,6 +184,24 @@ class NPUW8A8Int8DynamicMoEMethod(_NPUFusedMoEMethodBase):
                 requires_grad=False,
             )
 
+        if enable_eplb:
+            layer.w13_weight_list = [
+                item.clone() for item in layer.w13_weight.data.unbind(0)
+            ]
+            layer.w2_weight_list = [
+                item.clone() for item in layer.w2_weight.data.unbind(0)
+            ]
+            layer.w13_weight_scale_list = [
+                item.clone() for item in layer.w13_weight_scale.data.unbind(0)
+            ]
+            layer.w2_weight_scale_list = [
+                item.clone() for item in layer.w2_weight_scale.data.unbind(0)
+            ]
+            del layer.w13_weight
+            del layer.w2_weight
+            del layer.w13_weight_scale
+            del layer.w2_weight_scale
+
     def apply(
         self,
         layer,
@@ -184,12 +215,20 @@ class NPUW8A8Int8DynamicMoEMethod(_NPUFusedMoEMethodBase):
         topk_weights, topk_ids, _ = topk_output
         topk_ids = topk_ids.to(torch.int32)
         topk_weights = topk_weights.to(x.dtype)
+
+        w13 = layer.w13_weight_list if enable_eplb else layer.w13_weight
+        w2 = layer.w2_weight_list if enable_eplb else layer.w2_weight
+        w13_scale = (
+            layer.w13_weight_scale_list if enable_eplb else layer.w13_weight_scale
+        )
+        w2_scale = layer.w2_weight_scale_list if enable_eplb else layer.w2_weight_scale
+
         output = npu_fused_experts(
             hidden_states=x,
-            w13=layer.w13_weight,
-            w13_scale=layer.w13_weight_scale,
-            w2=layer.w2_weight,
-            w2_scale=layer.w2_weight_scale,
+            w13=w13,
+            w13_scale=w13_scale,
+            w2=w2,
+            w2_scale=w2_scale,
             topk_weights=topk_weights,
             topk_ids=topk_ids,
             top_k=topk_ids.shape[1],
@@ -205,10 +244,31 @@ class NPUW8A8Int8DynamicMoEMethod(_NPUFusedMoEMethodBase):
         group_list,
         output_dtype,
     ):
+        w13 = (
+            layer.w13_weight_list
+            if hasattr(layer, "w13_weight_list")
+            else [layer.w13_weight]
+        )
+        w2 = (
+            layer.w2_weight_list
+            if hasattr(layer, "w2_weight_list")
+            else [layer.w2_weight]
+        )
+        w13_scale = (
+            layer.w13_weight_scale_list
+            if hasattr(layer, "w13_weight_scale_list")
+            else layer.w13_weight_scale
+        )
+        w2_scale = (
+            [item.to(output_dtype) for item in layer.w2_weight_scale_list]
+            if hasattr(layer, "w2_weight_scale_list")
+            else [layer.w2_weight_scale.to(output_dtype)]
+        )
+
         # gmm1: gate_up_proj
         hidden_states = torch.ops.npu.npu_grouped_matmul(
             x=[hidden_states],
-            weight=[layer.w13_weight],
+            weight=w13,
             split_item=2,
             group_list_type=group_list_type,
             group_type=0,
@@ -219,7 +279,7 @@ class NPUW8A8Int8DynamicMoEMethod(_NPUFusedMoEMethodBase):
         # act_fn: swiglu
         hidden_states, swiglu_out_scale = torch.ops.npu.npu_dequant_swiglu_quant(
             x=hidden_states,
-            weight_scale=layer.w13_weight_scale,
+            weight_scale=w13_scale,
             activation_scale=hidden_states_scale,
             bias=None,
             quant_scale=None,
@@ -232,8 +292,8 @@ class NPUW8A8Int8DynamicMoEMethod(_NPUFusedMoEMethodBase):
         # gmm2: down_proj
         hidden_states = torch.ops.npu.npu_grouped_matmul(
             x=[hidden_states],
-            weight=[layer.w2_weight],
-            scale=[layer.w2_weight_scale.to(output_dtype)],
+            weight=w2,
+            scale=w2_scale,
             per_token_scale=[swiglu_out_scale],
             split_item=2,
             group_list_type=group_list_type,

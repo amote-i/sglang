@@ -199,7 +199,6 @@ class NPUW8A8Int8DynamicMoEMethod(_NPUFusedMoEMethodBase):
             ]
             del layer.w13_weight
             del layer.w2_weight
-            del layer.w13_weight_scale
             del layer.w2_weight_scale
 
     def apply(
@@ -254,11 +253,6 @@ class NPUW8A8Int8DynamicMoEMethod(_NPUFusedMoEMethodBase):
             if hasattr(layer, "w2_weight_list")
             else [layer.w2_weight]
         )
-        w13_scale = (
-            layer.w13_weight_scale_list
-            if hasattr(layer, "w13_weight_scale_list")
-            else layer.w13_weight_scale
-        )
         w2_scale = (
             [item.to(output_dtype) for item in layer.w2_weight_scale_list]
             if hasattr(layer, "w2_weight_scale_list")
@@ -279,7 +273,7 @@ class NPUW8A8Int8DynamicMoEMethod(_NPUFusedMoEMethodBase):
         # act_fn: swiglu
         hidden_states, swiglu_out_scale = torch.ops.npu.npu_dequant_swiglu_quant(
             x=hidden_states,
-            weight_scale=w13_scale,
+            weight_scale=layer.w13_weight_scale,
             activation_scale=hidden_states_scale,
             bias=None,
             quant_scale=None,

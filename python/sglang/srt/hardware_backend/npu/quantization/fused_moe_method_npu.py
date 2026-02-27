@@ -371,6 +371,25 @@ class NPUW4A8Int8DynamicMoEMethod(_NPUFusedMoEMethodBase):
         layer.w13_weight.data = self._pack_to_int32(layer.w13_weight.data)
         layer.w2_weight.data = self._pack_to_int32(layer.w2_weight.data)
 
+        if enable_eplb:
+            layer.w13_weight_list = [
+                item.clone() for item in layer.w13_weight.data.unbind(0)
+            ]
+            layer.w2_weight_list = [
+                item.clone() for item in layer.w2_weight.data.unbind(0)
+            ]
+            layer.w13_weight_scale_list = [
+                item.clone() for item in layer.w13_weight_scale.data.unbind(0)
+            ]
+            layer.w2_weight_scale_list = [
+                item.clone() for item in layer.w2_weight_scale.data.unbind(0)
+            ]
+
+            del layer.w13_weight
+            del layer.w2_weight
+            del layer.w13_weight_scale
+            del layer.w2_weight_scale
+
     def _process_weights_without_clip(
         self, layer: torch.nn.Module, is_per_channel_weight
     ) -> None:
@@ -458,13 +477,21 @@ class NPUW4A8Int8DynamicMoEMethod(_NPUFusedMoEMethodBase):
 
         bias1 = [layer.w13_scale_bias]
         bias2 = [layer.w2_scale_bias]
-        w1_scale = [layer.w13_weight_scale]
-        w2_scale = [layer.w2_weight_scale]
+        if enable_eplb:
+            w1_weight = layer.w13_weight_list
+            w2_weight = layer.w2_weight_list
+            w1_scale = layer.w13_weight_scale_list
+            w2_scale = layer.w2_weight_scale_list
+        else:
+            w1_weight = [layer.w13_weight]
+            w2_weight = [layer.w2_weight]
+            w1_scale = [layer.w13_weight_scale]
+            w2_scale = [layer.w2_weight_scale]
         _output_dtype = torch.bfloat16
 
         hidden_states = torch.ops.npu.npu_grouped_matmul(
             x=[sorted_hidden_states],
-            weight=[layer.w13_weight],
+            weight=w1_weight,
             scale=w1_scale,
             bias=bias1,
             per_token_scale=[pertoken_scale],
@@ -481,7 +508,7 @@ class NPUW4A8Int8DynamicMoEMethod(_NPUFusedMoEMethodBase):
 
         output = torch.ops.npu.npu_grouped_matmul(
             x=[hidden_states],
-            weight=[layer.w2_weight],
+            weight=w2_weight,
             scale=w2_scale,
             bias=bias2,
             per_token_scale=[swiglu_out_scale],
@@ -514,10 +541,21 @@ class NPUW4A8Int8DynamicMoEMethod(_NPUFusedMoEMethodBase):
     ):
         from sgl_kernel_npu.activation.swiglu_quant import swiglu_quant
 
+        if enable_eplb:
+            w1_weight = layer.w13_weight_list
+            w2_weight = layer.w2_weight_list
+            w1_scale = layer.w13_weight_scale_list
+            w2_scale = layer.w2_weight_scale_list
+        else:
+            w1_weight = [layer.w13_weight]
+            w2_weight = [layer.w2_weight]
+            w1_scale = [layer.w13_weight_scale]
+            w2_scale = [layer.w2_weight_scale]
+
         hidden_states = torch.ops.npu.npu_grouped_matmul(
             x=[hidden_states],
-            weight=[layer.w13_weight],
-            scale=[layer.w13_weight_scale],
+            weight=w1_weight,
+            scale=w1_scale,
             bias=[layer.w13_scale_bias],
             per_token_scale=[hidden_states_scale],
             group_list=group_list,
@@ -533,8 +571,8 @@ class NPUW4A8Int8DynamicMoEMethod(_NPUFusedMoEMethodBase):
 
         hidden_states = torch.ops.npu.npu_grouped_matmul(
             x=[hidden_states],
-            weight=[layer.w2_weight],
-            scale=[layer.w2_weight_scale],
+            weight=w2_weight,
+            scale=w2_scale,
             bias=[layer.w2_scale_bias],
             per_token_scale=[swiglu_out_scale],
             group_list=group_list,

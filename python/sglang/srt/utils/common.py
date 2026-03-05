@@ -3103,21 +3103,27 @@ def require_mlp_tp_gather(server_args: ServerArgs):
     from sglang.srt.layers.moe.utils import get_moe_a2a_backend
 
     if server_args.enable_dp_attention:
+        print(f"###### enable_dp_attention is True")
         assert server_args.dp_size > 1, "dp_size must be greater than 1"
         if (
             server_args.moe_dense_tp_size is None
         ):  # TODO(ch-wan): some MoE models do not have dense layers
+            print(f"###### moe_dense_tp_size is None")
             return True
         elif not server_args.enable_dp_lm_head:
+            print(f"###### enable_dp_lm_head is False")
             return True
         elif get_moe_a2a_backend().is_none():
+            print(f"###### moe_a2a_backend is None")
             return True
         else:
+            print(f"###### moe_a2a_backend is not None")
             return (
                 server_args.moe_dense_tp_size
                 > server_args.tp_size // server_args.dp_size
             )
     else:
+        print(f"###### enable_dp_attention is False")
         return False
 
 

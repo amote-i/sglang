@@ -58,9 +58,11 @@ class SchedulerActor:
                 server_args, dist_init_addr=dist_init_addr
             )
 
+        device_key = "NPU" if server_args.device == "npu" else "GPU"
+
         # Get actual GPU IDs from Ray runtime context
         accelerator_ids = ray.get_runtime_context().get_accelerator_ids()
-        assigned_gpus = accelerator_ids.get("GPU", [])
+        assigned_gpus = accelerator_ids.get(device_key, [])
 
         if assigned_gpus:
             # Ray assigned specific GPU(s), use the first one

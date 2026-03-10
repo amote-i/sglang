@@ -334,14 +334,22 @@ def _create_ray_engine_backend(server_args: ServerArgs):
     from ray.util.placement_group import placement_group
     from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
 
-    env_vars = {"RAY_EXPERIMENTAL_NOSET_CUDA_VISIBLE_DEVICES": "1"}
+    is_npu = server_args.device == "npu"
+    device_key = "NPU" if is_npu else "GPU"
+    noset_device_key = (
+        "RAY_EXPERIMENTAL_NOSET_ASCEND_RT_VISIBLE_DEVICES"
+        if is_npu
+        else "RAY_EXPERIMENTAL_NOSET_CUDA_VISIBLE_DEVICES"
+    )
+
+    env_vars = {noset_device_key: "1"}
     if os.environ.get("HF_TOKEN"):
         env_vars["HF_TOKEN"] = os.environ["HF_TOKEN"]
     if not ray.is_initialized():
         ray.init(runtime_env=RuntimeEnv(env_vars=env_vars))
 
     total_gpus = server_args.tp_size * server_args.pp_size
-    pg = placement_group([{"CPU": 1, "GPU": total_gpus}], strategy="STRICT_PACK")
+    pg = placement_group([{"CPU": 1, device_key: total_gpus}], strategy="STRICT_PACK")
     ray.get(pg.ready())
 
     @ray.remote

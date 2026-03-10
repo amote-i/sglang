@@ -29,9 +29,14 @@ from sglang.srt.entrypoints.engine import (
     _compute_parallelism_ranks,
 )
 from sglang.srt.ray.scheduler_actor import SchedulerActor
-from sglang.srt.server_args import ZMQ_TCP_PORT_DELTA, PortArgs, ServerArgs
+from sglang.srt.server_args import (
+    ZMQ_TCP_PORT_DELTA,
+    PortArgs,
+    ServerArgs,
+)
 
 logger = logging.getLogger(__name__)
+is_npu = False
 
 
 @dataclasses.dataclass
@@ -48,8 +53,9 @@ def _get_rank0_node_ip(placement_group) -> str:
     This is needed because rank 0 starts the TCPStore server for torch.distributed,
     so dist_init_addr must be the IP of the node where rank 0 runs, not the driver node.
     """
+    device_key = "NPU" if is_npu else "GPU"
 
-    @ray.remote(num_cpus=0, num_gpus=0)
+    @ray.remote(num_cpus=0, resources={device_key: 0})
     def get_node_ip():
         return ray.util.get_node_ip_address()
 
@@ -83,6 +89,10 @@ class RayEngine(Engine):
         run_scheduler_process_func: Callable,
     ) -> SchedulerInitResult:
         """Launch schedulers as Ray actors."""
+        global is_npu
+        is_npu = server_args.device == "npu"
+        device_key = "NPU" if is_npu else "GPU"
+
         if server_args.dp_size > 1:
             raise NotImplementedError(
                 "Ray support for dp_size > 1 is not yet implemented. "
@@ -127,7 +137,7 @@ class RayEngine(Engine):
 
                     actor = SchedulerActor.options(
                         num_cpus=0,
-                        num_gpus=1,
+                        resources={device_key: 1},
                         name=f"sglang_scheduler_rank0node={rank0_node_ip}_pp{pp_rank}_tp{tp_rank}",
                         scheduling_strategy=PlacementGroupSchedulingStrategy(
                             placement_group=pg,

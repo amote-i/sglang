@@ -461,23 +461,34 @@ class ModelConfig:
         self.head_dim = getattr(
             self.hf_text_config,
             "head_dim",
-            self.hf_text_config.hidden_size // self.hf_text_config.num_attention_heads,
+            None,
+        ) or (
+            self.hf_text_config.hidden_size // self.hf_text_config.num_attention_heads
         )
-        self.v_head_dim = getattr(
-            self.hf_text_config,
-            "v_head_dim",
-            self.head_dim,
+        self.v_head_dim = (
+            getattr(
+                self.hf_text_config,
+                "v_head_dim",
+                None,
+            )
+            or self.head_dim
         )
 
-        self.swa_head_dim = getattr(
-            self.hf_text_config,
-            "swa_head_dim",
-            self.head_dim,
+        self.swa_head_dim = (
+            getattr(
+                self.hf_text_config,
+                "swa_head_dim",
+                None,
+            )
+            or self.head_dim
         )
-        self.swa_v_head_dim = getattr(
-            self.hf_text_config,
-            "swa_v_head_dim",
-            self.swa_head_dim,
+        self.swa_v_head_dim = (
+            getattr(
+                self.hf_text_config,
+                "swa_v_head_dim",
+                None,
+            )
+            or self.swa_head_dim
         )
         # FIXME: temporary special judge for MLA architecture
         if (

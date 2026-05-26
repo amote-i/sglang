@@ -6,7 +6,7 @@ metatags:
 
 ## Feature x Feature
 
-The table shows feature-by-feature compatibility of SGLang capabilities on Ascend NPU.
+The table shows feature-by-feature compatibility of SGLang capabilities on Ascend NPU. Features that have performance impact on Ascend are included.
 
 The symbols used are defined as follows:
 🟢 = Full compatibility
@@ -27,10 +27,15 @@ The symbols used are defined as follows:
       <th>Chunked Prefill</th>
       <th>MoE A2A</th>
       <th>NPU Graph</th>
-      <th>DSA Prefill Context Parallel</th>
+      <th>DSA Prefill CP</th>
       <th>Speculative Decoding</th>
       <th>Prefix Caching</th>
       <th>Multi-modal</th>
+      <th>Overlap Schedule</th>
+      <th>DP LM Head</th>
+      <th>MLAPO</th>
+      <th>Multistream MoE</th>
+      <th>EPLB</th>
     </tr>
   </thead>
   <tbody>
@@ -45,6 +50,11 @@ The symbols used are defined as follows:
       <td>🟠</td>
       <td>🟢</td>
       <td>🟠</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
@@ -65,6 +75,11 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
     </tr>
     <tr>
       <td>Expert Parallelism</td>
@@ -81,6 +96,11 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td>🟢</td>
       <td>🟠</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
     </tr>
     <tr>
       <td>Context Parallelism</td>
@@ -97,6 +117,11 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td>🟢</td>
       <td>🟠</td>
+      <td>🟠</td>
+      <td>❔</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
     </tr>
     <tr>
       <td>PD Disaggregation</td>
@@ -112,6 +137,11 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td>🟢</td>
       <td>🟠</td>
+      <td>🟠</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>🟢</td>
       <td>🟠</td>
     </tr>
     <tr>
@@ -129,6 +159,11 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td>🟢</td>
       <td>🟠</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
     </tr>
     <tr>
       <td>Chunked Prefill</td>
@@ -145,6 +180,11 @@ The symbols used are defined as follows:
       <td>🟠</td>
       <td>🟢</td>
       <td>🟠</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>🟠</td>
     </tr>
     <tr>
       <td>MoE A2A</td>
@@ -158,6 +198,11 @@ The symbols used are defined as follows:
       <td></td>
       <td>🟠</td>
       <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>🟢</td>
+      <td>🟠</td>
       <td>🟢</td>
       <td>🟢</td>
       <td>🟠</td>
@@ -177,9 +222,14 @@ The symbols used are defined as follows:
       <td>🟠</td>
       <td>🟢</td>
       <td>🟠</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>🟠</td>
     </tr>
     <tr>
-      <td>DSA Prefill Context Parallel</td>
+      <td>DSA Prefill CP</td>
       <td>🟢</td>
       <td>❔</td>
       <td>❔</td>
@@ -192,6 +242,11 @@ The symbols used are defined as follows:
       <td></td>
       <td>🟢</td>
       <td>🟢</td>
+      <td>❔</td>
+      <td>❔</td>
+      <td>❔</td>
+      <td>❔</td>
+      <td>❔</td>
       <td>❔</td>
     </tr>
     <tr>
@@ -209,6 +264,11 @@ The symbols used are defined as follows:
       <td></td>
       <td>🟢</td>
       <td>❔</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
     </tr>
     <tr>
       <td>Prefix Caching</td>
@@ -225,6 +285,11 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td></td>
       <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
     </tr>
     <tr>
       <td>Multi-modal</td>
@@ -240,6 +305,116 @@ The symbols used are defined as follows:
       <td>❔</td>
       <td>❔</td>
       <td>🟢</td>
+      <td></td>
+      <td>❔</td>
+      <td>❔</td>
+      <td>❔</td>
+      <td>❔</td>
+      <td>❔</td>
+    </tr>
+    <tr>
+      <td>Overlap Schedule</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>❔</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>❔</td>
+      <td></td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+    </tr>
+    <tr>
+      <td>DP LM Head</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>❔</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>❔</td>
+      <td>🟠</td>
+      <td>🟢</td>
+      <td>❔</td>
+      <td>🟢</td>
+      <td></td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟠</td>
+    </tr>
+    <tr>
+      <td>MLAPO</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>❔</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>❔</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td></td>
+      <td>🟢</td>
+      <td>❔</td>
+    </tr>
+    <tr>
+      <td>Multistream MoE</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>❔</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>❔</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td></td>
+      <td>❔</td>
+    </tr>
+    <tr>
+      <td>EPLB</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>❔</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>❔</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>❔</td>
+      <td>❔</td>
       <td></td>
     </tr>
   </tbody>
@@ -324,3 +499,33 @@ Reuses KV cache across requests that share common prompt prefixes (Radix Cache),
 Enables inference for models that process images, video, or audio alongside text (e.g., Qwen-VL, DeepSeek-VL2). Uses Ascend-specific attention backends for multi-modal inputs. Has partial compatibility with MoE and parallelism features due to additional preprocessing and encoder overhead.
 
 支持处理图像、视频或音频的多模态模型推理（如 Qwen-VL、DeepSeek-VL2）。使用 Ascend 专用 Attention 后端处理多模态输入。由于额外的预处理和编码器开销，与 MoE 及部分并行特性为部分兼容。
+
+### Overlap Schedule
+
+Overlaps compute and communication operations to improve hardware utilization. On Ascend, this is controlled via environment variables `SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1` and `SGLANG_ENABLE_SPEC_V2=1`. Most effective during decode with speculative decoding and DP attention, where expert dispatch/reduce communication can be overlapped with the next batch's computation. Used in nearly all best-practice decode configurations.
+
+重叠计算和通信操作以提升硬件利用率。在 Ascend 上通过环境变量 `SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1` 和 `SGLANG_ENABLE_SPEC_V2=1` 控制。在 decode 阶段配合投机解码和 DP Attention 效果最佳，可以将专家 dispatch/reduce 通信与下一批次的计算重叠执行。在几乎所有 best-practice decode 配置中均有使用。
+
+### DP LM Head (`--enable-dp-lm-head`)
+
+Shards the language model head (the final vocabulary projection layer) across DP ranks to reduce memory consumption and improve decode throughput. Without this, each DP rank holds a full copy of the LM head, which is wasteful for large vocabularies. Typically used together with `--enable-dp-attention`.
+
+将语言模型头（最终的词表投影层）按 DP ranks 分片，以减少显存占用并提升 decode 吞吐量。不启用时，每个 DP rank 都持有完整的 LM Head 副本，对大词表模型造成浪费。通常与 `--enable-dp-attention` 配合使用。
+
+### MLAPO (`SGLANG_NPU_USE_MLAPO=1`)
+
+Enables the MLAPO (MLA Pre-Processing Optimization) fusion operator for DeepSeek-style Multi-head Latent Attention models, replacing multiple separate kernels with a single fused kernel for Q/K/V projection and absorption. Reduces prefill latency and memory bandwidth usage. Used in most DeepSeek best-practice configurations.
+
+为 DeepSeek 风格的多头潜在注意力（MLA）模型启用 MLAPO 融合算子，将 Q/K/V 投影和吸收的多个独立 kernel 替换为单个融合 kernel。降低 prefill 延迟和显存带宽消耗。在大多数 DeepSeek best-practice 配置中使用。
+
+### Multistream MoE (`SGLANG_NPU_USE_MULTI_STREAM=1`)
+
+Enables dual-stream parallel execution for MoE layers, where shared experts and routing experts run concurrently on separate NPU streams. This overlaps shared-expert computation with routed-expert dispatch, improving MoE layer throughput.
+
+为 MoE 层启用双流并行执行，共享专家和路由专家在独立的 NPU 流上并发运行。将共享专家计算与路由专家 dispatch 重叠执行，提升 MoE 层吞吐量。
+
+### EPLB (`--enable-eplb`)
+
+Enables Expert Parallelism Load Balancing to dynamically redistribute experts across devices based on workload, ensuring even expert utilization and preventing hotspots. Uses the `deepseek` balancing algorithm. Incompatible with `ascend_fuseep` MoE A2A backend.
+
+启用专家并行负载均衡，根据工作负载动态重分布专家到各设备，确保专家利用率均匀并防止热点。使用 `deepseek` 均衡算法。与 `ascend_fuseep` MoE A2A 后端不兼容。

@@ -355,7 +355,7 @@ The symbols used are defined as follows:
       <td>❔</td>
       <td>❔</td>
       <td></td>
-      <td>❌</td>
+      <td>🟠</td>
     </tr>
     <tr>
       <td>NZ Weight Format</td>
@@ -374,7 +374,7 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
-      <td>❌</td>
+      <td>🟠</td>
       <td></td>
     </tr>
   </tbody>
@@ -423,17 +423,12 @@ Reduces model weight and activation precision (e.g., W8A8, W4A8, W4A16) to decre
 Breaks large prefill computations into smaller, fixed-size chunks for better scheduling interleaving with decode batches. This prevents long prefill requests from blocking decode latency. Use `-1` to disable chunked prefill on dedicated prefill nodes. Has partial compatibility with most features because chunk boundaries introduce scheduling complexity.
 
 将大型 prefill 计算拆分为较小的固定大小 chunk，以实现与 decode 批次更好的调度交错。这可以防止长 prefill 请求阻塞 decode 延迟。在专用 prefill 节点上可使用 `-1` 禁用。与大多数特性为部分兼容，因为 chunk 边界会引入调度复杂性。
+
 ### NPU Graph (`--cuda-graph-bs`)
 
 Captures the compute graph on NPU and replays it to eliminate kernel launch overhead, analogous to CUDA Graph on NVIDIA GPUs. Internally uses `torch.npu.NPUGraph`. Most effective for decode with stable, predictable batch sizes (via `--cuda-graph-bs`). Has partial compatibility with most features because graph capture requires fixed control flow and tensor shapes.
 
 在 NPU 上捕获计算图并重复播放，以消除 kernel 启动开销，类似于 NVIDIA GPU 上的 CUDA Graph。内部使用 `torch.npu.NPUGraph`。在 decode 阶段配合稳定的批量大小（通过 `--cuda-graph-bs`）效果最佳。与大多数特性为部分兼容，因为图捕获要求固定的控制流和张量形状。
-
-### DSA Prefill Context Parallel (`--enable-dsa-prefill-context-parallel`)
-
-Uses Ascend's Domain-Specific Architecture to accelerate prefill with context parallelism, enabling efficient processing of very long sequences. Supports `in-seq-split` and `round-robin-split` modes via `--dsa-prefill-cp-mode`. Used in long-context scenarios (e.g., 128K input for DeepSeek-V3.2).
-
-利用 Ascend 的领域专用架构（DSA）加速带 Context Parallelism 的 prefill，实现对超长序列的高效处理。通过 `--dsa-prefill-cp-mode` 支持 `in-seq-split` 和 `round-robin-split` 模式。用于长上下文场景（如 DeepSeek-V3.2 的 128K 输入）。
 
 ### Speculative Decoding (`--speculative-algorithm`)
 

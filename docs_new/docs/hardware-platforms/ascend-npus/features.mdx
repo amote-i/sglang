@@ -1,6 +1,12 @@
+---
+title: "Feature Compatibility"
+metatags:
+  description: "Feature x Feature compatibility matrix for Ascend NPU"
+---
+
 ## Feature x Feature
 
-The table shows Feature combinations of SGLang capabilities.
+The table shows feature-by-feature compatibility of SGLang capabilities on Ascend NPU.
 
 The symbols used are defined as follows:
 🟢 = Full compatibility
@@ -19,12 +25,12 @@ The symbols used are defined as follows:
       <th>PD Disaggregation</th>
       <th>Quantization</th>
       <th>Chunked Prefill</th>
-      <th>Moe A2A</th>
-      <th>Cuda Graph</th>
-      <th>Dsa prefill Context Parallel</th>
+      <th>MoE A2A</th>
+      <th>NPU Graph</th>
+      <th>DSA Prefill Context Parallel</th>
       <th>Speculative Decoding</th>
-      <th>Dp LM Head</th>
-      <th>Disable Radix Cache</th>
+      <th>Prefix Caching</th>
+      <th>Multi-modal</th>
     </tr>
   </thead>
   <tbody>
@@ -73,8 +79,8 @@ The symbols used are defined as follows:
       <td>🟠</td>
       <td>❔</td>
       <td>🟢</td>
-      <td>🟠</td>
       <td>🟢</td>
+      <td>🟠</td>
     </tr>
     <tr>
       <td>Context Parallelism</td>
@@ -89,8 +95,8 @@ The symbols used are defined as follows:
       <td>🟠</td>
       <td>🟢</td>
       <td>🟢</td>
-      <td>❔</td>
       <td>🟢</td>
+      <td>🟠</td>
     </tr>
     <tr>
       <td>PD Disaggregation</td>
@@ -106,7 +112,7 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td>🟢</td>
       <td>🟠</td>
-      <td>🟢</td>
+      <td>🟠</td>
     </tr>
     <tr>
       <td>Quantization</td>
@@ -121,8 +127,8 @@ The symbols used are defined as follows:
       <td>🟠</td>
       <td>🟢</td>
       <td>🟢</td>
-      <td>🟠</td>
       <td>🟢</td>
+      <td>🟠</td>
     </tr>
     <tr>
       <td>Chunked Prefill</td>
@@ -137,11 +143,11 @@ The symbols used are defined as follows:
       <td>🟠</td>
       <td>🟠</td>
       <td>🟠</td>
-      <td>🟠</td>
       <td>🟢</td>
+      <td>🟠</td>
     </tr>
     <tr>
-      <td>Moe A2A</td>
+      <td>MoE A2A</td>
       <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
@@ -153,11 +159,11 @@ The symbols used are defined as follows:
       <td>🟠</td>
       <td>🟢</td>
       <td>🟢</td>
-      <td>🟠</td>
       <td>🟢</td>
+      <td>🟠</td>
     </tr>
     <tr>
-      <td>Cuda Graph</td>
+      <td>NPU Graph</td>
       <td>🟠</td>
       <td>🟠</td>
       <td>🟠</td>
@@ -169,11 +175,11 @@ The symbols used are defined as follows:
       <td></td>
       <td>🟠</td>
       <td>🟠</td>
-      <td>🟠</td>
       <td>🟢</td>
+      <td>🟠</td>
     </tr>
     <tr>
-      <td>Dsa prefill Context Parallel</td>
+      <td>DSA Prefill Context Parallel</td>
       <td>🟢</td>
       <td>❔</td>
       <td>❔</td>
@@ -185,8 +191,8 @@ The symbols used are defined as follows:
       <td>🟠</td>
       <td></td>
       <td>🟢</td>
-      <td>❔</td>
       <td>🟢</td>
+      <td>❔</td>
     </tr>
     <tr>
       <td>Speculative Decoding</td>
@@ -201,40 +207,120 @@ The symbols used are defined as follows:
       <td>🟠</td>
       <td>🟢</td>
       <td></td>
-      <td>🟠</td>
       <td>🟢</td>
+      <td>❔</td>
     </tr>
     <tr>
-      <td>Dp LM Head</td>
+      <td>Prefix Caching</td>
+      <td>🟢</td>
+      <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
       <td>🟠</td>
-      <td>❔</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>❔</td>
-      <td>🟠</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
       <td></td>
       <td>🟢</td>
     </tr>
     <tr>
-      <td>Disable Radix Cache</td>
+      <td>Multi-modal</td>
       <td>🟢</td>
       <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>🟠</td>
+      <td>❔</td>
+      <td>❔</td>
       <td>🟢</td>
       <td></td>
     </tr>
   </tbody>
 </table>
+
+## Feature descriptions
+
+### Tensor Parallelism (`--tp-size`)
+
+Splits model weights across multiple NPU devices so that large models can be loaded and run cooperatively. Each device holds a shard of every weight tensor and communicates via HCCL all-reduce. This is the primary mechanism for deploying models that exceed single-device memory.
+
+将模型权重切分到多张 NPU 设备上，使大模型可以协同加载和运行。每张设备持有所有权重张量的一个分片，并通过 HCCL all-reduce 进行通信。这是部署超出单卡内存容量模型的主要机制。
+
+### Data Parallelism (`--dp-size`, `--enable-dp-attention`)
+
+Replicates the model across independent device groups to increase throughput by processing multiple requests in parallel. With `--enable-dp-attention`, the attention layers are replicated across DP ranks while the FFN/MoE layers remain tensor-parallel, which improves throughput for MoE models where attention is the bottleneck.
+
+在独立的设备组之间复制模型，通过并行处理多个请求来提升吞吐量。启用 `--enable-dp-attention` 后，Attention 层在 DP ranks 间复制，而 FFN/MoE 层保持张量并行，可以提升 Attention 为瓶颈的 MoE 模型的吞吐量。
+
+### Expert Parallelism (`--ep-size`)
+
+Distributes the experts of Mixture-of-Experts (MoE) models across devices. Each device holds a subset of experts and routes tokens via all-to-all communication. Supports load balancing methods including round-robin and expert-parallel load balancing (EPLB).
+
+将 MoE（混合专家）模型的专家分布到不同设备上。每张设备持有一组专家子集，通过 all-to-all 通信完成 token 路由。支持 round-robin 和 EPLB（专家并行负载均衡）等负载均衡策略。
+
+### Context Parallelism (`--attn-cp-size`)
+
+Splits long input sequences across devices so that the KV cache and attention computation for a single request are distributed. This enables serving very long context lengths (e.g., 128K tokens) that exceed single-device memory. On Ascend, `--attn-cp-size` must equal `--tp-size`.
+
+将长输入序列切分到多张设备上，使单个请求的 KV Cache 和 Attention 计算可以分布式完成。这使得服务超长上下文（如 128K tokens）成为可能。在 Ascend 上，`--attn-cp-size` 必须等于 `--tp-size`。
+
+### PD Disaggregation (`--disaggregation-mode`)
+
+Separates the prefill (P) and decode (D) phases onto different device groups, allowing each phase to be independently optimized for its compute and memory characteristics. Prefill nodes handle long input processing at high throughput, while decode nodes focus on low-latency token generation. Uses the Ascend MemFabric transfer backend (`--disaggregation-transfer-backend ascend`).
+
+将 prefill（P）和 decode（D）阶段分离到不同的设备组上，使每个阶段可以针对自身的计算和内存特征独立优化。Prefill 节点以高吞吐处理长输入，Decode 节点专注于低延迟的 token 生成。使用 Ascend MemFabric 传输后端（`--disaggregation-transfer-backend ascend`）。
+
+### Quantization (`--quantization`)
+
+Reduces model weight and activation precision (e.g., W8A8, W4A8, W4A16) to decrease memory usage and increase throughput. Ascend supports ModelSlim quantization (W4A4, W8A8, W4A8 dynamic/static), AWQ, GPTQ, Auto-round, Compressed-tensors, and GGUF formats. See [quantization](./ascend_npu_quantization) for details.
+
+降低模型权重和激活值的精度（如 W8A8、W4A8、W4A16），以减少显存占用并提升吞吐量。Ascend 支持 ModelSlim 量化（W4A4、W8A8、W4A8 动态/静态）、AWQ、GPTQ、Auto-round、Compressed-tensors 和 GGUF 格式。详见 [quantization](./ascend_npu_quantization)。
+
+### Chunked Prefill (`--chunked-prefill-size`)
+
+Breaks large prefill computations into smaller, fixed-size chunks for better scheduling interleaving with decode batches. This prevents long prefill requests from blocking decode latency. Use `-1` to disable chunked prefill on dedicated prefill nodes. Has partial compatibility with most features because chunk boundaries introduce scheduling complexity.
+
+将大型 prefill 计算拆分为较小的固定大小 chunk，以实现与 decode 批次更好的调度交错。这可以防止长 prefill 请求阻塞 decode 延迟。在专用 prefill 节点上可使用 `-1` 禁用。与大多数特性为部分兼容，因为 chunk 边界会引入调度复杂性。
+
+### MoE A2A (`--moe-a2a-backend`)
+
+Implements efficient all-to-all communication for MoE expert routing. Ascend supports two backends: `deepep` (DeepEP, with `normal` mode for prefill and `low_latency` mode for decode) and `ascend_fuseep` (Ascend Fused EP, which fuses dispatch and combine operations for higher throughput). This is essential for MoE models like DeepSeek and Qwen MoE.
+
+实现 MoE 专家路由的高效 all-to-all 通信。Ascend 支持两种后端：`deepep`（DeepEP，prefill 使用 `normal` 模式，decode 使用 `low_latency` 模式）和 `ascend_fuseep`（Ascend Fused EP，将 dispatch 和 combine 操作融合以获得更高吞吐量）。这对 DeepSeek、Qwen MoE 等 MoE 模型至关重要。
+
+### NPU Graph (`--cuda-graph-bs`)
+
+Captures the compute graph on NPU and replays it to eliminate kernel launch overhead, analogous to CUDA Graph on NVIDIA GPUs. Internally uses `torch.npu.NPUGraph`. Most effective for decode with stable, predictable batch sizes (via `--cuda-graph-bs`). Has partial compatibility with most features because graph capture requires fixed control flow and tensor shapes.
+
+在 NPU 上捕获计算图并重复播放，以消除 kernel 启动开销，类似于 NVIDIA GPU 上的 CUDA Graph。内部使用 `torch.npu.NPUGraph`。在 decode 阶段配合稳定的批量大小（通过 `--cuda-graph-bs`）效果最佳。与大多数特性为部分兼容，因为图捕获要求固定的控制流和张量形状。
+
+### DSA Prefill Context Parallel (`--enable-dsa-prefill-context-parallel`)
+
+Uses Ascend's Domain-Specific Architecture to accelerate prefill with context parallelism, enabling efficient processing of very long sequences. Supports `in-seq-split` and `round-robin-split` modes via `--dsa-prefill-cp-mode`. Used in long-context scenarios (e.g., 128K input for DeepSeek-V3.2).
+
+利用 Ascend 的领域专用架构（DSA）加速带 Context Parallelism 的 prefill，实现对超长序列的高效处理。通过 `--dsa-prefill-cp-mode` 支持 `in-seq-split` 和 `round-robin-split` 模式。用于长上下文场景（如 DeepSeek-V3.2 的 128K 输入）。
+
+### Speculative Decoding (`--speculative-algorithm`)
+
+Reduces per-token latency by predicting multiple future tokens in a single forward pass, then verifying them against the model. Ascend supports `NEXTN` (for DeepSeek models, using the model's own hidden states) and `EAGLE3` (for Qwen MoE models, using a separate draft model). Controlled by `--speculative-num-steps`, `--speculative-eagle-topk`, and `--speculative-num-draft-tokens`. On Ascend, `SGLANG_ENABLE_SPEC_V2=1` and `SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1` enable the optimized overlap scheduler for speculative decoding.
+
+通过在单次前向传播中预测多个未来 token，再由模型验证，来降低每 token 延迟。Ascend 支持 `NEXTN`（用于 DeepSeek 模型，利用模型自身的隐藏状态）和 `EAGLE3`（用于 Qwen MoE 模型，使用独立的 draft 模型）。通过 `--speculative-num-steps`、`--speculative-eagle-topk` 和 `--speculative-num-draft-tokens` 控制。在 Ascend 上，设置 `SGLANG_ENABLE_SPEC_V2=1` 和 `SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1` 可启用针对投机解码优化的重叠调度器。
+
+### Prefix Caching (`--disable-radix-cache`)
+
+Reuses KV cache across requests that share common prompt prefixes (Radix Cache), reducing repeated prefill computation and lowering time-to-first-token. Enabled by default; disable with `--disable-radix-cache` when prefix reuse is not expected (e.g., dedicated prefill nodes in PD disaggregation, or random-input benchmarks).
+
+跨请求复用共享前缀的 KV Cache（Radix Cache），减少重复 prefill 计算，降低首 token 延迟。默认启用；当前缀无复用场景（如 PD 分离部署中的专用 prefill 节点、随机输入 benchmark）时可通过 `--disable-radix-cache` 关闭。
+
+### Multi-modal (`--enable-multimodal`)
+
+Enables inference for models that process images, video, or audio alongside text (e.g., Qwen-VL, DeepSeek-VL2). Uses Ascend-specific attention backends for multi-modal inputs. Has partial compatibility with MoE and parallelism features due to additional preprocessing and encoder overhead.
+
+支持处理图像、视频或音频的多模态模型推理（如 Qwen-VL、DeepSeek-VL2）。使用 Ascend 专用 Attention 后端处理多模态输入。由于额外的预处理和编码器开销，与 MoE 及部分并行特性为部分兼容。

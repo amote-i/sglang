@@ -1,12 +1,11 @@
 ---
 title: "Feature Compatibility"
-metatags:
-  description: "Feature x Feature compatibility matrix for Ascend NPU"
+description: "Feature x Feature compatibility matrix for Ascend NPU"
 ---
 
-## Feature x Feature
+## Feature x feature
 
-The table shows feature-by-feature compatibility of SGLang capabilities on Ascend NPU. Features that have performance impact on Ascend are included.
+The table shows feature-by-feature compatibility of SGLang capabilities on Ascend NPU. Features that have performance impact on Ascend are included. Each cell at the intersection of two features indicates whether they can be used together.
 
 The symbols used are defined as follows:
 🟢 = Full compatibility
@@ -25,9 +24,7 @@ The symbols used are defined as follows:
       <th>PD Disaggregation</th>
       <th>Quantization</th>
       <th>Chunked Prefill</th>
-      <th>MoE A2A</th>
       <th>NPU Graph</th>
-      <th>DSA Prefill CP</th>
       <th>Speculative Decoding</th>
       <th>Prefix Caching</th>
       <th>Multi-modal</th>
@@ -36,6 +33,7 @@ The symbols used are defined as follows:
       <th>MLAPO</th>
       <th>Multistream MoE</th>
       <th>EPLB</th>
+      <th>NZ Weight Format</th>
     </tr>
   </thead>
   <tbody>
@@ -48,7 +46,6 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td>🟢</td>
       <td>🟠</td>
-      <td>🟢</td>
       <td>🟠</td>
       <td>🟢</td>
       <td>🟢</td>
@@ -69,9 +66,8 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td>🟢</td>
       <td>🟠</td>
-      <td>🟢</td>
       <td>🟠</td>
-      <td>❔</td>
+      <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
@@ -90,14 +86,13 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td>🟢</td>
       <td>🟠</td>
-      <td>🟢</td>
       <td>🟠</td>
-      <td>❔</td>
       <td>🟢</td>
       <td>🟢</td>
       <td>🟠</td>
       <td>🟢</td>
       <td>🟠</td>
+      <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
@@ -111,14 +106,13 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td>🟢</td>
       <td>🟠</td>
-      <td>🟢</td>
       <td>🟠</td>
-      <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
       <td>🟠</td>
       <td>🟠</td>
       <td>❔</td>
+      <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
@@ -132,17 +126,16 @@ The symbols used are defined as follows:
       <td></td>
       <td>🟢</td>
       <td>🟠</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
       <td>🟠</td>
       <td>🟢</td>
       <td>🟠</td>
       <td>🟠</td>
       <td>🟢</td>
       <td>🟠</td>
+      <td>🟠</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>🟢</td>
     </tr>
     <tr>
       <td>Quantization</td>
@@ -153,14 +146,13 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td></td>
       <td>🟠</td>
-      <td>🟢</td>
       <td>🟠</td>
       <td>🟢</td>
       <td>🟢</td>
-      <td>🟢</td>
       <td>🟠</td>
       <td>🟢</td>
       <td>🟠</td>
+      <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
@@ -176,8 +168,6 @@ The symbols used are defined as follows:
       <td></td>
       <td>🟠</td>
       <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
       <td>🟢</td>
       <td>🟠</td>
       <td>🟠</td>
@@ -185,27 +175,7 @@ The symbols used are defined as follows:
       <td>🟠</td>
       <td>🟠</td>
       <td>🟠</td>
-    </tr>
-    <tr>
-      <td>MoE A2A</td>
       <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td></td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
     </tr>
     <tr>
       <td>NPU Graph</td>
@@ -216,10 +186,8 @@ The symbols used are defined as follows:
       <td>🟠</td>
       <td>🟠</td>
       <td>🟠</td>
-      <td>🟠</td>
       <td></td>
       <td>🟠</td>
-      <td>🟠</td>
       <td>🟢</td>
       <td>🟠</td>
       <td>🟠</td>
@@ -227,27 +195,7 @@ The symbols used are defined as follows:
       <td>🟠</td>
       <td>🟠</td>
       <td>🟠</td>
-    </tr>
-    <tr>
-      <td>DSA Prefill CP</td>
-      <td>🟢</td>
-      <td>❔</td>
-      <td>❔</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
       <td>🟠</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td></td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>❔</td>
-      <td>❔</td>
-      <td>❔</td>
-      <td>❔</td>
-      <td>❔</td>
-      <td>❔</td>
     </tr>
     <tr>
       <td>Speculative Decoding</td>
@@ -258,14 +206,13 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td>🟢</td>
       <td>🟠</td>
-      <td>🟢</td>
       <td>🟠</td>
-      <td>🟢</td>
       <td></td>
       <td>🟢</td>
       <td>❔</td>
       <td>🟢</td>
       <td>🟠</td>
+      <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
@@ -281,9 +228,8 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
       <td></td>
+      <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
@@ -301,8 +247,6 @@ The symbols used are defined as follows:
       <td>🟠</td>
       <td>🟠</td>
       <td>🟠</td>
-      <td>🟠</td>
-      <td>❔</td>
       <td>❔</td>
       <td>🟢</td>
       <td></td>
@@ -311,6 +255,7 @@ The symbols used are defined as follows:
       <td>❔</td>
       <td>❔</td>
       <td>❔</td>
+      <td>🟢</td>
     </tr>
     <tr>
       <td>Overlap Schedule</td>
@@ -321,13 +266,12 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td>🟢</td>
       <td>🟠</td>
-      <td>🟢</td>
       <td>🟠</td>
-      <td>❔</td>
       <td>🟢</td>
       <td>🟢</td>
       <td>❔</td>
       <td></td>
+      <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
       <td>🟢</td>
@@ -344,8 +288,6 @@ The symbols used are defined as follows:
       <td>🟠</td>
       <td>🟠</td>
       <td>🟠</td>
-      <td>❔</td>
-      <td>🟠</td>
       <td>🟢</td>
       <td>❔</td>
       <td>🟢</td>
@@ -353,6 +295,7 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td>🟢</td>
       <td>🟠</td>
+      <td>🟢</td>
     </tr>
     <tr>
       <td>MLAPO</td>
@@ -363,9 +306,7 @@ The symbols used are defined as follows:
       <td>🟠</td>
       <td>🟢</td>
       <td>🟠</td>
-      <td>🟢</td>
       <td>🟠</td>
-      <td>❔</td>
       <td>🟢</td>
       <td>🟢</td>
       <td>❔</td>
@@ -374,6 +315,7 @@ The symbols used are defined as follows:
       <td></td>
       <td>🟢</td>
       <td>❔</td>
+      <td>🟢</td>
     </tr>
     <tr>
       <td>Multistream MoE</td>
@@ -384,9 +326,7 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td>🟢</td>
       <td>🟠</td>
-      <td>🟢</td>
       <td>🟠</td>
-      <td>❔</td>
       <td>🟢</td>
       <td>🟢</td>
       <td>❔</td>
@@ -395,6 +335,7 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td></td>
       <td>❔</td>
+      <td>🟢</td>
     </tr>
     <tr>
       <td>EPLB</td>
@@ -406,8 +347,6 @@ The symbols used are defined as follows:
       <td>🟢</td>
       <td>🟠</td>
       <td>🟠</td>
-      <td>🟠</td>
-      <td>❔</td>
       <td>🟢</td>
       <td>🟢</td>
       <td>❔</td>
@@ -415,6 +354,27 @@ The symbols used are defined as follows:
       <td>🟠</td>
       <td>❔</td>
       <td>❔</td>
+      <td></td>
+      <td>❌</td>
+    </tr>
+    <tr>
+      <td>NZ Weight Format</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟠</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>🟢</td>
+      <td>❌</td>
       <td></td>
     </tr>
   </tbody>
@@ -454,22 +414,15 @@ Separates the prefill (P) and decode (D) phases onto different device groups, al
 
 ### Quantization (`--quantization`)
 
-Reduces model weight and activation precision (e.g., W8A8, W4A8, W4A16) to decrease memory usage and increase throughput. Ascend supports ModelSlim quantization (W4A4, W8A8, W4A8 dynamic/static), AWQ, GPTQ, Auto-round, Compressed-tensors, and GGUF formats. See [quantization](./ascend_npu_quantization) for details.
+Reduces model weight and activation precision (e.g., W8A8, W4A8, W4A16) to decrease memory usage and increase throughput. Ascend supports ModelSlim quantization (W4A4, W8A8, W4A8 dynamic/static), AWQ, GPTQ, Auto-round, Compressed-tensors, and GGUF formats. See [quantization](/hardware-platforms/ascend-npus/ascend_npu_quantization) for details.
 
-降低模型权重和激活值的精度（如 W8A8、W4A8、W4A16），以减少显存占用并提升吞吐量。Ascend 支持 ModelSlim 量化（W4A4、W8A8、W4A8 动态/静态）、AWQ、GPTQ、Auto-round、Compressed-tensors 和 GGUF 格式。详见 [quantization](./ascend_npu_quantization)。
+降低模型权重和激活值的精度（如 W8A8、W4A8、W4A16），以减少显存占用并提升吞吐量。Ascend 支持 ModelSlim 量化（W4A4、W8A8、W4A8 动态/静态）、AWQ、GPTQ、Auto-round、Compressed-tensors 和 GGUF 格式。详见 [quantization](/hardware-platforms/ascend-npus/ascend_npu_quantization)。
 
 ### Chunked Prefill (`--chunked-prefill-size`)
 
 Breaks large prefill computations into smaller, fixed-size chunks for better scheduling interleaving with decode batches. This prevents long prefill requests from blocking decode latency. Use `-1` to disable chunked prefill on dedicated prefill nodes. Has partial compatibility with most features because chunk boundaries introduce scheduling complexity.
 
 将大型 prefill 计算拆分为较小的固定大小 chunk，以实现与 decode 批次更好的调度交错。这可以防止长 prefill 请求阻塞 decode 延迟。在专用 prefill 节点上可使用 `-1` 禁用。与大多数特性为部分兼容，因为 chunk 边界会引入调度复杂性。
-
-### MoE A2A (`--moe-a2a-backend`)
-
-Implements efficient all-to-all communication for MoE expert routing. Ascend supports two backends: `deepep` (DeepEP, with `normal` mode for prefill and `low_latency` mode for decode) and `ascend_fuseep` (Ascend Fused EP, which fuses dispatch and combine operations for higher throughput). This is essential for MoE models like DeepSeek and Qwen MoE.
-
-实现 MoE 专家路由的高效 all-to-all 通信。Ascend 支持两种后端：`deepep`（DeepEP，prefill 使用 `normal` 模式，decode 使用 `low_latency` 模式）和 `ascend_fuseep`（Ascend Fused EP，将 dispatch 和 combine 操作融合以获得更高吞吐量）。这对 DeepSeek、Qwen MoE 等 MoE 模型至关重要。
-
 ### NPU Graph (`--cuda-graph-bs`)
 
 Captures the compute graph on NPU and replays it to eliminate kernel launch overhead, analogous to CUDA Graph on NVIDIA GPUs. Internally uses `torch.npu.NPUGraph`. Most effective for decode with stable, predictable batch sizes (via `--cuda-graph-bs`). Has partial compatibility with most features because graph capture requires fixed control flow and tensor shapes.
@@ -526,6 +479,12 @@ Enables dual-stream parallel execution for MoE layers, where shared experts and 
 
 ### EPLB (`--enable-eplb`)
 
-Enables Expert Parallelism Load Balancing to dynamically redistribute experts across devices based on workload, ensuring even expert utilization and preventing hotspots. Uses the `deepseek` balancing algorithm. Incompatible with `ascend_fuseep` MoE A2A backend.
+Enables Expert Parallelism Load Balancing to dynamically redistribute experts across devices based on workload, ensuring even expert utilization and preventing hotspots. Uses the `deepseek` balancing algorithm. Compatible with the `deepep` MoE A2A backend, but not with `ascend_fuseep`.
 
-启用专家并行负载均衡，根据工作负载动态重分布专家到各设备，确保专家利用率均匀并防止热点。使用 `deepseek` 均衡算法。与 `ascend_fuseep` MoE A2A 后端不兼容。
+启用专家并行负载均衡，根据工作负载动态重分布专家到各设备，确保专家利用率均匀并防止热点。使用 `deepseek` 均衡算法。与 `deepep` MoE A2A 后端兼容，与 `ascend_fuseep` 后端不兼容。
+
+### NZ Weight Format (`SGLANG_NPU_DISABLE_ACL_FORMAT_WEIGHT`)
+
+Casts model weight tensors to the Ascend NPU ACL FRACTAL_NZ format (format 29) for improved memory access efficiency on Da Vinci AI cores. Enabled by default globally; disable with `SGLANG_NPU_DISABLE_ACL_FORMAT_WEIGHT=1` when the format conflicts with other features (e.g., EPLB). Applied to linear weights, MoE weights, quantized weights, MLA QKV projections, and KV Cache (via `PA_NZ` / `nzcache` modes for FIA). Related env var: `SGLANG_USE_FIA_NZ=1` (requires `SGLANG_NPU_USE_MLAPO=1`).
+
+将模型权重张量转换为 Ascend NPU ACL FRACTAL_NZ 格式（格式 29），以提升 Da Vinci AI Core 上的内存访问效率。默认全局启用；当格式与其他特性冲突时（如 EPLB），可通过 `SGLANG_NPU_DISABLE_ACL_FORMAT_WEIGHT=1` 禁用。应用于线性权重、MoE 权重、量化权重、MLA QKV 投影以及 KV Cache（通过 `PA_NZ` / `nzcache` 模式用于 FIA）。相关环境变量：`SGLANG_USE_FIA_NZ=1`（需同时启用 `SGLANG_NPU_USE_MLAPO=1`）。

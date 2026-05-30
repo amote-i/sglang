@@ -53,7 +53,7 @@ Adapt the **Jet-Nemotron-2B** model. This model leverages Post Neural Architectu
 The goal is to achieve inference adaptation on the Ascend NPU platform and to verify architectural compatibility and inference accuracy.
 
 Detailed information for this phase:
-1. Model name: [Jet-Nemotron-2B](https://www.modelscope.cn/models/nv-community/Jet-Nemotron-2B)
+1. Model name: [Jet-Nemotron-2B](https://www.modelscope.cn/models/jet-ai/Jet-Nemotron-2B)
 2. Development platform: Atlas 800T A2 or A3
 
 ### Acceptance Criteria
@@ -98,7 +98,7 @@ Adapt the **Tencent-Hunyuan-Large** 389B MoE model. Hunyuan-Large demonstrates o
 The goal is to fully implement inference adaptation on the Ascend NPU platform, ensuring efficient execution of the large-parameter model on NPUs with aligned accuracy.
 
 Detailed information for this phase:
-1. Model name: [Tencent-Hunyuan-Large](https://www.modelscope.cn/models/tencent/Hunyuan-Large)
+1. Model name: [Tencent-Hunyuan-Large](https://www.modelscope.cn/models/Tencent-Hunyuan/Tencent-Hunyuan-Large)
 2. Development platform: Atlas 800T A2 or A3
 
 ### Acceptance Criteria
@@ -186,7 +186,7 @@ NVILA-8B Native Vision-Language Model Adaptation
 Adapt the **NVILA-8B** vision-language model. NVILA is a family of open vision-language models that simultaneously optimize efficiency and accuracy. Built upon the VILA model, it uses a "scale-then-compress" approach to efficiently process high-resolution images and long videos. This adaptation must validate both inference accuracy and inference performance, ensuring efficient execution of multimodal tasks on NPUs.
 
 Detailed information for this phase:
-1. Model name: [NVILA-8B](https://www.modelscope.cn/models/NVILA/NVILA-8B)
+1. Model name: [NVILA-8B](https://www.modelscope.cn/models/Efficient-Large-Model/NVILA-8B)
 2. Development platform: Atlas 800T A2 or A3
 
 ### Acceptance Criteria
@@ -272,7 +272,7 @@ DeepSeek-OCR2 Multimodal OCR Model Adaptation and Optimization
 Adapt the **DeepSeek-OCR2** high-precision image-text recognition model. This model supports multilingual text recognition, handwriting recognition, and complex layout document parsing. Based on the SGLang framework, the adaptation covers the image preprocessing, visual encoding, and text decoding pipeline for NPUs, optimizes image inference compute footprint, and ensures that OCR recognition accuracy and inference speed meet practical requirements.
 
 Detailed information for this phase:
-1. Model name: [DeepSeek-OCR2](https://www.modelscope.cn/models/deepseek-ai/DeepSeek-OCR2)
+1. Model name: [DeepSeek-OCR2](https://www.modelscope.cn/models/deepseek-ai/DeepSeek-OCR-2)
 2. Development platform: Atlas 800T A2 or A3
 
 ### Acceptance Criteria

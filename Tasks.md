@@ -60,6 +60,8 @@ Detailed information for this phase:
 
 **I. Deliverables**
 
+This phase extends the existing framework/repository and requires development code and documentation. The main development points are:
+
 1. Submit a PR
   - Complete inference adaptation code.
   - Add test cases under `test/registered/ascend` to guard accuracy.
@@ -67,7 +69,7 @@ Detailed information for this phase:
   - Provide a full PR description that includes accuracy and performance results, following community conventions.
   - (Optional) Supplement `docs_new/docs/hardware-platforms/ascend-npus/ascend_npu_faq.mdx` with problems encountered and solved during adaptation.
 2. Update the Issue
-  - The issue should include development experience, problems encountered, and their solutions. Contributors are encouraged to organize this into a `SKILL.md` file that records AI-assisted development experience, effective prompts, and best practices.
+  - The issue may include development experience, problems encountered, and their solutions.
 
 **II. Acceptance Criteria**
 
@@ -82,6 +84,8 @@ After local testing and verification, create a PR against the `main` branch of h
 
 ### Point of Contact
 @amote-i
+
+Welcome to the community and thank you for your contribution 🎉!
 
 ---
 
@@ -101,6 +105,8 @@ Detailed information for this phase:
 
 **I. Deliverables**
 
+This phase extends the existing framework/repository and requires development code and documentation. The main development points are:
+
 1. Submit a PR
   - Complete inference adaptation code.
   - Add test cases under `test/registered/ascend` to guard accuracy.
@@ -108,7 +114,7 @@ Detailed information for this phase:
   - Provide a full PR description that includes accuracy and performance results, following community conventions.
   - (Optional) Supplement `docs_new/docs/hardware-platforms/ascend-npus/ascend_npu_faq.mdx` with problems encountered and solved during adaptation.
 2. Update the Issue
-  - The issue should include development experience, problems encountered, and their solutions. Contributors are encouraged to organize this into a `SKILL.md` file that records AI-assisted development experience, effective prompts, and best practices.
+  - The issue may include development experience, problems encountered, and their solutions.
 
 **II. Acceptance Criteria**
 
@@ -119,10 +125,12 @@ Detailed information for this phase:
 2) The PR must contain complete inference code, test code, and a PR description.
 
 ### PR Merge
-Create a PR against the `main` branch of https://github.com/sgl-project/sglang.
+After local testing and verification, create a PR against the `main` branch of https://github.com/sgl-project/sglang.
 
 ### Point of Contact
 @amote-i
+
+Welcome to the community and thank you for your contribution 🎉!
 
 ---
 
@@ -142,14 +150,16 @@ Detailed information for this phase:
 
 **I. Deliverables**
 
+This phase extends the existing framework/repository and requires development code and documentation. The main development points are:
+
 1. Submit a PR
   - Complete inference adaptation code (including speech preprocessing and feature extraction adaptation).
   - Add test cases under `test/registered/ascend` to guard accuracy.
   - Update the model support document `docs_new/docs/hardware-platforms/ascend-npus/ascend_npu_support_models.mdx`.
   - Provide a full PR description that includes accuracy and performance results, following community conventions.
-  - (Optional) Supplement `docs_new/docs/hardware-platforms/ascend-npus/ascend_npu_faq.mdx` with frequently encountered problems.
+  - (Optional) Supplement `docs_new/docs/hardware-platforms/ascend-npus/ascend_npu_faq.mdx` with problems encountered and solved during adaptation.
 2. Update the Issue
-  - The issue should include development experience, problems encountered, and their solutions. Contributors are encouraged to organize this into a `SKILL.md` file that records AI-assisted development experience, effective prompts, and best practices.
+  - The issue may include development experience, problems encountered, and their solutions.
 
 **II. Acceptance Criteria**
 
@@ -160,10 +170,12 @@ Detailed information for this phase:
 2) The PR must contain complete inference code, test code, and a PR description.
 
 ### PR Merge
-Create a PR against the `main` branch of https://github.com/sgl-project/sglang.
+After local testing and verification, create a PR against the `main` branch of https://github.com/sgl-project/sglang.
 
 ### Point of Contact
 @amote-i
+
+Welcome to the community and thank you for your contribution 🎉!
 
 ---
 
@@ -181,14 +193,16 @@ Detailed information for this phase:
 
 **I. Deliverables**
 
+This phase extends the existing framework/repository and requires development code and documentation. The main development points are:
+
 1. Submit a PR
   - Complete inference adaptation code (covering image and video inputs).
   - Add test cases under `test/registered/ascend` to guard accuracy and performance.
   - Update the model support document `docs_new/docs/hardware-platforms/ascend-npus/ascend_npu_support_models.mdx`.
   - Provide a full PR description that includes accuracy and performance results, following community conventions.
-  - (Optional) Supplement `docs_new/docs/hardware-platforms/ascend-npus/ascend_npu_faq.mdx` with frequently encountered problems.
+  - (Optional) Supplement `docs_new/docs/hardware-platforms/ascend-npus/ascend_npu_faq.mdx` with problems encountered and solved during adaptation.
 2. Update the Issue
-  - The issue should include development experience, problems encountered, and their solutions. Contributors are encouraged to organize this into a `SKILL.md` file that records AI-assisted development experience, effective prompts, and best practices.
+  - The issue may include development experience, problems encountered, and their solutions.
 
 **II. Acceptance Criteria**
 
@@ -199,10 +213,12 @@ Detailed information for this phase:
 2) The PR must contain complete inference code, test code, and a PR description.
 
 ### PR Merge
-Create a PR against the `main` branch of https://github.com/sgl-project/sglang.
+After local testing and verification, create a PR against the `main` branch of https://github.com/sgl-project/sglang.
 
 ### Point of Contact
 @amote-i
+
+Welcome to the community and thank you for your contribution 🎉!
 
 ---
 
@@ -220,14 +236,16 @@ Detailed information for this phase:
 
 **I. Deliverables**
 
+This phase extends the existing framework/repository and requires development code and documentation. The main development points are:
+
 1. Submit a PR
   - Complete inference adaptation and scheduling optimization code.
   - Add functional and performance test cases under `test/registered/ascend`.
   - Update the model support document `docs_new/docs/hardware-platforms/ascend-npus/ascend_npu_support_models.mdx`.
   - Provide a full PR description that includes accuracy and performance results, following community conventions.
-  - (Optional) Supplement `docs_new/docs/hardware-platforms/ascend-npus/ascend_npu_faq.mdx` with frequently encountered problems.
+  - (Optional) Supplement `docs_new/docs/hardware-platforms/ascend-npus/ascend_npu_faq.mdx` with problems encountered and solved during adaptation.
 2. Update the Issue
-  - The issue should include development experience, problems encountered, and their solutions. Contributors are encouraged to organize this into a `SKILL.md` file that records AI-assisted development experience, effective prompts, and best practices.
+  - The issue may include development experience, problems encountered, and their solutions.
 
 **II. Acceptance Criteria**
 
@@ -238,10 +256,12 @@ Detailed information for this phase:
 2) The PR must contain complete inference code, test code, and a PR description.
 
 ### PR Merge
-Create a PR against the `main` branch of https://github.com/sgl-project/sglang.
+After local testing and verification, create a PR against the `main` branch of https://github.com/sgl-project/sglang.
 
 ### Point of Contact
 @amote-i
+
+Welcome to the community and thank you for your contribution 🎉!
 
 ---
 
@@ -259,14 +279,16 @@ Detailed information for this phase:
 
 **I. Deliverables**
 
+This phase extends the existing framework/repository and requires development code and documentation. The main development points are:
+
 1. Submit a PR
   - Complete inference adaptation code for image recognition and multi-scenario layout recognition.
   - Add test cases for image recognition and multi-scenario layout recognition under `test/registered/ascend`.
   - Update the model support document `docs_new/docs/hardware-platforms/ascend-npus/ascend_npu_support_models.mdx`.
   - Provide a full PR description that includes accuracy and performance results, following community conventions.
-  - (Optional) Supplement `docs_new/docs/hardware-platforms/ascend-npus/ascend_npu_faq.mdx` with frequently encountered problems.
+  - (Optional) Supplement `docs_new/docs/hardware-platforms/ascend-npus/ascend_npu_faq.mdx` with problems encountered and solved during adaptation.
 2. Update the Issue
-  - The issue should include development experience, problems encountered, and their solutions. Contributors are encouraged to organize this into a `SKILL.md` file that records AI-assisted development experience, effective prompts, and best practices.
+  - The issue may include development experience, problems encountered, and their solutions.
 
 **II. Acceptance Criteria**
 
@@ -277,10 +299,12 @@ Detailed information for this phase:
 2) The PR must contain complete inference code, test code, and a PR description.
 
 ### PR Merge
-Create a PR against the `main` branch of https://github.com/sgl-project/sglang.
+After local testing and verification, create a PR against the `main` branch of https://github.com/sgl-project/sglang.
 
 ### Point of Contact
 @amote-i
+
+Welcome to the community and thank you for your contribution 🎉!
 
 ---
 
@@ -298,25 +322,29 @@ Detailed information for this phase:
 
 **I. Deliverables**
 
+This phase extends the existing framework/repository and requires development code and documentation. The main development points are:
+
 1. Submit a PR
   - Complete inference adaptation code (covering three model sizes).
   - Add test cases for text generation, contextual dialogue, and accuracy validation under `test/registered/ascend`.
   - Update the model support document `docs_new/docs/hardware-platforms/ascend-npus/ascend_npu_support_models.mdx`.
   - Provide a full PR description that includes accuracy and performance results, following community conventions.
-  - (Optional) Supplement `docs_new/docs/hardware-platforms/ascend-npus/ascend_npu_faq.mdx` with frequently encountered problems.
+  - (Optional) Supplement `docs_new/docs/hardware-platforms/ascend-npus/ascend_npu_faq.mdx` with problems encountered and solved during adaptation.
 2. Update the Issue
-  - The issue should include development experience, problems encountered, and their solutions. Contributors are encouraged to organize this into a `SKILL.md` file that records AI-assisted development experience, effective prompts, and best practices.
+  - The issue may include development experience, problems encountered, and their solutions.
 
 **II. Acceptance Criteria**
 
 1) Accuracy / Performance requirements
 - Accuracy: The adapted model's accuracy on representative evaluation tasks must not deviate more than 1% from the official baseline.
-- Performance: N/A (If performance optimization is required, attach test results in the PR.)
+- Performance: N/A (If performance optimization is included, attach test results in the PR.)
 
 2) The PR must contain complete inference code, test code, and a PR description.
 
 ### PR Merge
-Create a PR against the `main` branch of https://github.com/sgl-project/sglang.
+After local testing and verification, create a PR against the `main` branch of https://github.com/sgl-project/sglang.
 
 ### Point of Contact
 @amote-i
+
+Welcome to the community and thank you for your contribution 🎉!

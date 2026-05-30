@@ -13,7 +13,7 @@ Detailed information for this phase:
 
 ### Acceptance Criteria
 
-**I. Deliverables**
+**Deliverables**
 
 This phase extends the existing framework/repository and requires development code and documentation. The main development points are:
 
@@ -26,13 +26,13 @@ This phase extends the existing framework/repository and requires development co
 2. Update the Issue
   - The issue may include development experience, problems encountered, and their solutions.
 
-**II. Acceptance Criteria**
+**Acceptance Criteria**
 
-1) Accuracy / Performance requirements
+1. Accuracy / Performance requirements
 - Accuracy: The adapted model's accuracy on representative evaluation tasks must not deviate more than 1% from the official baseline. The official baseline can be obtained from the model card on the download page.
 - Performance: N/A
 
-2) The PR must contain complete inference code, test code, and a PR description.
+2. The PR must contain complete inference code, test code, and a PR description.
 
 ### PR Merge
 After local testing and verification, create a PR against the `main` branch of https://github.com/sgl-project/sglang.
@@ -58,7 +58,7 @@ Detailed information for this phase:
 
 ### Acceptance Criteria
 
-**I. Deliverables**
+**Deliverables**
 
 This phase extends the existing framework/repository and requires development code and documentation. The main development points are:
 
@@ -71,13 +71,13 @@ This phase extends the existing framework/repository and requires development co
 2. Update the Issue
   - The issue may include development experience, problems encountered, and their solutions.
 
-**II. Acceptance Criteria**
+**Acceptance Criteria**
 
-1) Accuracy / Performance requirements
+1. Accuracy / Performance requirements
 - Accuracy: The adapted model's accuracy on representative evaluation tasks must not deviate more than 1% from the official baseline.
 - Performance: N/A
 
-2) The PR must contain complete inference code, test code, and a PR description.
+2. The PR must contain complete inference code, test code, and a PR description.
 
 ### PR Merge
 After local testing and verification, create a PR against the `main` branch of https://github.com/sgl-project/sglang.
@@ -103,7 +103,7 @@ Detailed information for this phase:
 
 ### Acceptance Criteria
 
-**I. Deliverables**
+**Deliverables**
 
 This phase extends the existing framework/repository and requires development code and documentation. The main development points are:
 
@@ -116,13 +116,13 @@ This phase extends the existing framework/repository and requires development co
 2. Update the Issue
   - The issue may include development experience, problems encountered, and their solutions.
 
-**II. Acceptance Criteria**
+**Acceptance Criteria**
 
-1) Accuracy / Performance requirements
+1. Accuracy / Performance requirements
 - Accuracy: The adapted model's accuracy on representative evaluation tasks must not deviate more than 1% from the official baseline.
 - Performance: N/A
 
-2) The PR must contain complete inference code, test code, and a PR description.
+2. The PR must contain complete inference code, test code, and a PR description.
 
 ### PR Merge
 After local testing and verification, create a PR against the `main` branch of https://github.com/sgl-project/sglang.
@@ -148,7 +148,7 @@ Detailed information for this phase:
 
 ### Acceptance Criteria
 
-**I. Deliverables**
+**Deliverables**
 
 This phase extends the existing framework/repository and requires development code and documentation. The main development points are:
 
@@ -161,13 +161,13 @@ This phase extends the existing framework/repository and requires development co
 2. Update the Issue
   - The issue may include development experience, problems encountered, and their solutions.
 
-**II. Acceptance Criteria**
+**Acceptance Criteria**
 
-1) Accuracy / Performance requirements
+1. Accuracy / Performance requirements
 - Accuracy: The adapted model's character/word error rate on representative multilingual test sets must not differ by more than 1% (absolute) from the official baseline, which can be obtained from the model card on the download page.
 - Performance: N/A
 
-2) The PR must contain complete inference code, test code, and a PR description.
+2. The PR must contain complete inference code, test code, and a PR description.
 
 ### PR Merge
 After local testing and verification, create a PR against the `main` branch of https://github.com/sgl-project/sglang.
@@ -191,7 +191,7 @@ Detailed information for this phase:
 
 ### Acceptance Criteria
 
-**I. Deliverables**
+**Deliverables**
 
 This phase extends the existing framework/repository and requires development code and documentation. The main development points are:
 
@@ -204,13 +204,13 @@ This phase extends the existing framework/repository and requires development co
 2. Update the Issue
   - The issue may include development experience, problems encountered, and their solutions.
 
-**II. Acceptance Criteria**
+**Acceptance Criteria**
 
-1) Accuracy / Performance requirements
+1. Accuracy / Performance requirements
 - Accuracy: The adapted model's accuracy on representative multimodal evaluation tasks must not deviate more than 1% from the official baseline.
 - Performance: The PR must include inference throughput/latency test results, with no significant performance regression (using equivalent-scale model baselines within SGLang as a reference).
 
-2) The PR must contain complete inference code, test code, and a PR description.
+2. The PR must contain complete inference code, test code, and a PR description.
 
 ### PR Merge
 After local testing and verification, create a PR against the `main` branch of https://github.com/sgl-project/sglang.
@@ -234,7 +234,7 @@ Detailed information for this phase:
 
 ### Acceptance Criteria
 
-**I. Deliverables**
+**Deliverables**
 
 This phase extends the existing framework/repository and requires development code and documentation. The main development points are:
 
@@ -247,13 +247,13 @@ This phase extends the existing framework/repository and requires development co
 2. Update the Issue
   - The issue may include development experience, problems encountered, and their solutions.
 
-**II. Acceptance Criteria**
+**Acceptance Criteria**
 
-1) Accuracy / Performance requirements
+1. Accuracy / Performance requirements
 - Accuracy: The output quality of the adapted model on representative general dialogue and copy generation tests must not deviate more than 1% from the official baseline.
 - Performance: The PR must showcase low-latency, high-throughput performance test results, with no significant performance regression.
 
-2) The PR must contain complete inference code, test code, and a PR description.
+2. The PR must contain complete inference code, test code, and a PR description.
 
 ### PR Merge
 After local testing and verification, create a PR against the `main` branch of https://github.com/sgl-project/sglang.
@@ -277,7 +277,7 @@ Detailed information for this phase:
 
 ### Acceptance Criteria
 
-**I. Deliverables**
+**Deliverables**
 
 This phase extends the existing framework/repository and requires development code and documentation. The main development points are:
 
@@ -290,13 +290,13 @@ This phase extends the existing framework/repository and requires development co
 2. Update the Issue
   - The issue may include development experience, problems encountered, and their solutions.
 
-**II. Acceptance Criteria**
+**Acceptance Criteria**
 
-1) Accuracy / Performance requirements
+1. Accuracy / Performance requirements
 - Accuracy: The adapted model's text recognition accuracy and multi-scenario layout parsing metrics must not differ by more than 1% (absolute) from the official baseline.
 - Performance: The PR must include inference throughput/latency test results, with no significant performance regression.
 
-2) The PR must contain complete inference code, test code, and a PR description.
+2. The PR must contain complete inference code, test code, and a PR description.
 
 ### PR Merge
 After local testing and verification, create a PR against the `main` branch of https://github.com/sgl-project/sglang.
@@ -320,7 +320,7 @@ Detailed information for this phase:
 
 ### Acceptance Criteria
 
-**I. Deliverables**
+**Deliverables**
 
 This phase extends the existing framework/repository and requires development code and documentation. The main development points are:
 
@@ -333,13 +333,13 @@ This phase extends the existing framework/repository and requires development co
 2. Update the Issue
   - The issue may include development experience, problems encountered, and their solutions.
 
-**II. Acceptance Criteria**
+**Acceptance Criteria**
 
-1) Accuracy / Performance requirements
+1. Accuracy / Performance requirements
 - Accuracy: The adapted model's accuracy on representative evaluation tasks must not deviate more than 1% from the official baseline.
 - Performance: N/A (If performance optimization is included, attach test results in the PR.)
 
-2) The PR must contain complete inference code, test code, and a PR description.
+2. The PR must contain complete inference code, test code, and a PR description.
 
 ### PR Merge
 After local testing and verification, create a PR against the `main` branch of https://github.com/sgl-project/sglang.

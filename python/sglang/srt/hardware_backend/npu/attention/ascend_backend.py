@@ -1464,7 +1464,7 @@ class AscendAttnBackend(AttentionBackend):
                     attn_output = attn_output.view(
                         -1, layer.tp_q_head_num * layer.v_head_dim
                     )
-            elif self.use_fa:
+            elif self.use_fa and not self._is_swa_layer(layer):
                 from flash_attn_npu_v3 import flash_attn_with_kvcache
 
                 q = q.reshape(-1, layer.tp_q_head_num, layer.qk_head_dim)
@@ -1518,6 +1518,9 @@ class AscendAttnBackend(AttentionBackend):
                     and forward_batch.encoder_lens is None
                     and layer.logit_cap == 0
                     and not getattr(self, "use_native_sdpa", False)
+                    # SWA layers keep their KV in the SWA pool; only native sdpa
+                    # translates full-pool indices via full_to_swa_mapping.
+                    and not self._is_swa_layer(layer)
                 ):
                     if not self.use_alibi:
                         query = q.reshape(-1, layer.tp_q_head_num * layer.qk_head_dim)
@@ -2238,7 +2241,12 @@ class AscendAttnBackend(AttentionBackend):
                     v,
                 )
 
-        if sinks is not None or self.is_hybrid_swa:
+        # The sink/learnable-sink kernels (FIA v2 with learnable_sink, or
+        # attention_sinks_triton) require either a real sinks tensor (GPT-OSS) or
+        # FIA. Plain hybrid SWA without FIA falls through to the regular path
+        # below, which serves SWA layers with block_tables_swa + a static
+        # swa_mask (capture-safe).
+        if sinks is not None or (self.is_hybrid_swa and self.use_fia):
             # Use SWA block tables if hybrid SWA is enabled for this layer
             if self._is_swa_layer(layer):
                 block_tables = self.forward_metadata.block_tables_swa
@@ -2655,7 +2663,7 @@ class AscendAttnBackend(AttentionBackend):
                         ],
                         dim=0,
                     )
-            elif self.use_fa:
+            elif self.use_fa and not self._is_swa_layer(layer):
                 from flash_attn_npu_v3 import flash_attn_with_kvcache
 
                 q = q.view(
@@ -2677,7 +2685,13 @@ class AscendAttnBackend(AttentionBackend):
                 )
             # there are some accuracy issues in cross attention scene to use torch_npu._npu_flash_attention_qlens
             # forward_batch.encoder_lens is not None in cross attention scend, we add native attn to solve accuracy issues
-            elif forward_batch.encoder_lens is None and layer.logit_cap == 0:
+            # SWA layers keep their KV in the SWA pool; route them to native attn,
+            # which translates full-pool indices via full_to_swa_mapping.
+            elif (
+                forward_batch.encoder_lens is None
+                and layer.logit_cap == 0
+                and not self._is_swa_layer(layer)
+            ):
                 query = q.reshape(-1, layer.tp_q_head_num, layer.qk_head_dim)
                 num_tokens = query.shape[0]
                 if not self.use_alibi:

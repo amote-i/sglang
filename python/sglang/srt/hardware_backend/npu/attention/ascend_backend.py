@@ -2290,39 +2290,64 @@ class AscendAttnBackend(AttentionBackend):
                 else:
                     sparse_mode = 3
 
-                attn_output, _ = torch_npu.npu_fused_infer_attention_score_v2(
-                    query,
-                    k_cache,
-                    v_cache,
-                    num_query_heads=layer.tp_q_head_num,
-                    num_key_value_heads=layer.tp_k_head_num,
-                    input_layout="TND",
-                    pre_tokens=(
-                        layer.sliding_window_size
-                        if layer.sliding_window_size != -1
-                        else FULL_ATTENTION_WINDOW
-                    ),
+                if sinks is None and layer.sliding_window_size != -1:
+                    # Decode with a single query per sequence (S1=1, e.g. bs=1)
+                    # makes the kernel ignore pre_tokens, so the window must be
+                    # encoded in the mask itself. Use the BSND layout with the
+                    # static swa_mask (capture-safe), mirroring the eager
+                    # forward_decode path; the TND split-fuse tiling rejects
+                    # full-length masks.
+                    attn_output, _ = torch_npu.npu_fused_infer_attention_score_v2(
+                        q.view(-1, 1, layer.tp_q_head_num, layer.qk_head_dim),
+                        k_cache,
+                        v_cache,
+                        num_query_heads=layer.tp_q_head_num,
+                        num_key_value_heads=layer.tp_k_head_num,
+                        input_layout="BSND",
+                        block_size=self.page_size,
+                        atten_mask=self.forward_metadata.swa_mask,
+                        sparse_mode=4,
+                        softmax_scale=layer.scaling,
+                        block_table=block_tables,
+                        actual_seq_qlen=[1] * q.shape[0],
+                        actual_seq_kvlen=actual_seq_lengths_kv,
+                        pre_tokens=layer.sliding_window_size,
+                        next_tokens=0,
+                    )
+                    attn_output = attn_output.view(
+                        -1, layer.tp_q_head_num * layer.v_head_dim
+                    )
+                else:
                     # The band window is expressed via pre_tokens with
-                    # next_tokens=0 (matching forward_extend, the eager decode
-                    # path, and the vLLM-Ascend sparse_mode=4 decode reference).
-                    # A non-zero next_tokens keeps the band from engaging in the
-                    # forward direction, so SWA layers would attend the full
-                    # context. atten_mask must stay the 2048-wide causal template
-                    # required by the split-fuse tiling (full-length masks are
-                    # rejected by the kernel).
-                    next_tokens=0,
-                    atten_mask=self.fia_mask.to(torch.int8),
-                    sparse_mode=sparse_mode,
-                    softmax_scale=layer.scaling,
-                    block_table=block_tables,
-                    block_size=self.page_size,
-                    actual_seq_qlen=actual_seq_lengths,
-                    actual_seq_kvlen=actual_seq_lengths_kv,
-                    learnable_sink=sinks,
-                )
-                attn_output = attn_output.view(
-                    -1, layer.tp_q_head_num * layer.v_head_dim
-                )
+                    # next_tokens=0 (matching forward_extend and the vLLM-Ascend
+                    # sparse_mode=4 decode reference). atten_mask must stay the
+                    # 2048-wide causal template required by the split-fuse
+                    # tiling (full-length masks are rejected by the kernel).
+                    attn_output, _ = torch_npu.npu_fused_infer_attention_score_v2(
+                        query,
+                        k_cache,
+                        v_cache,
+                        num_query_heads=layer.tp_q_head_num,
+                        num_key_value_heads=layer.tp_k_head_num,
+                        input_layout="TND",
+                        pre_tokens=(
+                            layer.sliding_window_size
+                            if layer.sliding_window_size != -1
+                            else FULL_ATTENTION_WINDOW
+                        ),
+                        next_tokens=0,
+                        atten_mask=self.fia_mask.to(torch.int8),
+                        sparse_mode=sparse_mode,
+                        softmax_scale=layer.scaling,
+                        block_table=block_tables,
+                        block_size=self.page_size,
+                        actual_seq_qlen=actual_seq_lengths,
+                        actual_seq_kvlen=actual_seq_lengths_kv,
+                        learnable_sink=sinks,
+                    )
+                    attn_output = attn_output.view(
+                        -1, layer.tp_q_head_num * layer.v_head_dim
+                    )
                 return attn_output
             else:
                 k_cache = self.token_to_kv_pool.get_key_buffer(layer.layer_id)

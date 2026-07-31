@@ -2302,9 +2302,15 @@ class AscendAttnBackend(AttentionBackend):
                         if layer.sliding_window_size != -1
                         else FULL_ATTENTION_WINDOW
                     ),
-                    next_tokens=(
-                        0 if layer.sliding_window_size == -1 else FULL_ATTENTION_WINDOW
-                    ),
+                    # The band window is expressed via pre_tokens with
+                    # next_tokens=0 (matching forward_extend, the eager decode
+                    # path, and the vLLM-Ascend sparse_mode=4 decode reference).
+                    # A non-zero next_tokens keeps the band from engaging in the
+                    # forward direction, so SWA layers would attend the full
+                    # context. atten_mask must stay the 2048-wide causal template
+                    # required by the split-fuse tiling (full-length masks are
+                    # rejected by the kernel).
+                    next_tokens=0,
                     atten_mask=self.fia_mask.to(torch.int8),
                     sparse_mode=sparse_mode,
                     softmax_scale=layer.scaling,

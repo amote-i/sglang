@@ -160,6 +160,19 @@ class NPUGraphRunner(DecodeCudaGraphRunner):
     def _get_update_attr_name(self):
         if self.if_use_v2:
             return self.attr_name["TARGET_VERIFY"]
+        # hybrid-SWA MHA models with FIA route every decode layer through the
+        # FIA v2 op (npu_fused_infer_attention_score_v2), whose seq-len
+        # parameter is named "actual_seq_kvlen" — distinct from the v1 op's
+        # "actual_seq_lengths_kv". graph.update rebinds by parameter name, so
+        # the attr_name must match the op actually captured in the graph.
+        # Without this, the captured seq_lens (fill value 0) is never
+        # refreshed during replay and every decode scores as if KV len = 0.
+        if (
+            self.use_fia
+            and self.model_runner.is_hybrid_swa
+            and self.model_runner.model_config.attention_arch == AttentionArch.MHA
+        ):
+            return self.attr_name["TARGET_VERIFY"]
         return self.attr_name[AttentionArch.MLA]
 
     def _get_update_attr_type(self):

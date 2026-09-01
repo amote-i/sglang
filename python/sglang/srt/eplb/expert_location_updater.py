@@ -20,13 +20,14 @@ import torch
 import torch.distributed
 from torch.distributed import P2POp
 
+from sglang.srt.distributed.parallel_state import get_moe_ep_group
 from sglang.srt.elastic_ep.elastic_ep import ElasticEPStateManager
 from sglang.srt.environ import envs
 from sglang.srt.eplb.expert_location import (
     ExpertLocationMetadata,
     get_global_expert_location_metadata,
 )
-from sglang.srt.runtime_context import get_device
+from sglang.srt.runtime_context import get_device, get_parallel
 from sglang.srt.utils import get_bool_env_var
 
 logger = logging.getLogger(__name__)
@@ -44,12 +45,15 @@ class ExpertLocationUpdater:
         routed_experts_weights_of_layer: Dict[int, List[torch.Tensor]],
         new_expert_location_metadata: ExpertLocationMetadata,
         update_layer_ids: List[int],
-        nnodes: int,
         rank: int,
         use_flat_topology: bool = False,
     ):
         """
         Update experts' physical location after EPLB.
+
+        `rank` is the rank within the weight-exchange group; it is only used
+        for the elastic flat-topology path, otherwise it is re-derived from
+        the MoE EP group.
 
         Returns a map of layer_id to expert_ids that are missing due to rank
         failures during fault conditions when elastic EP is enabled.
@@ -60,15 +64,34 @@ class ExpertLocationUpdater:
 
         old_expert_location_metadata = get_global_expert_location_metadata()
         assert old_expert_location_metadata is not None
-        topology_num_nodes = 1 if use_flat_topology else nnodes
+
+        if use_flat_topology:
+            # Elastic-EP scale-up rebalances over the expanded flat world, so
+            # weights are exchanged between global ranks on the default group.
+            p2p_group = None
+            world_size = torch.distributed.get_world_size()
+            nnodes = 1
+        else:
+            # The physical expert slots are owned by the MoE EP group of this
+            # pipeline stage, and the map rank space is group-local. The world
+            # group cannot be used here: under PP, other stages never enter
+            # rebalance at the same time, so world-group p2p deadlocks on
+            # communicator creation.
+            moe_ep_group = get_moe_ep_group()
+            p2p_group = moe_ep_group.device_group
+            rank = moe_ep_group.rank_in_group
+            world_size = moe_ep_group.world_size
+            nnodes = _compute_node_count_of_group(moe_ep_group)
 
         missing_logical_experts_by_layers = _update_expert_weights(
             routed_experts_weights_of_layer=routed_experts_weights_of_layer,
             old_expert_location_metadata=old_expert_location_metadata,
             new_expert_location_metadata=new_expert_location_metadata,
             update_layer_ids=update_layer_ids,
-            nnodes=topology_num_nodes,
+            nnodes=nnodes,
             rank=rank,
+            world_size=world_size,
+            p2p_group=p2p_group,
         )
         old_expert_location_metadata.update(
             new_expert_location_metadata,
@@ -93,6 +116,8 @@ def _update_expert_weights_with_canary(
     update_layer_ids: List[int],
     nnodes: int,
     rank: int,
+    world_size: int,
+    p2p_group,
 ):
     num_local_physical_experts = old_expert_location_metadata.num_local_physical_experts
 
@@ -120,6 +145,8 @@ def _update_expert_weights_with_canary(
         update_layer_ids=update_layer_ids,
         nnodes=nnodes,
         rank=rank,
+        world_size=world_size,
+        p2p_group=p2p_group,
     )
 
     for layer_id in update_layer_ids:
@@ -142,6 +169,8 @@ def _update_expert_weights_raw(
     update_layer_ids: List[int],
     nnodes: int,
     rank: int,
+    world_size: int,
+    p2p_group=None,
 ):
     log_metrics = get_bool_env_var("SGLANG_EXPERT_LOCATION_UPDATER_LOG_METRICS")
 
@@ -149,7 +178,6 @@ def _update_expert_weights_raw(
         routed_experts_weights_of_layer[update_layer_ids[0]]
     )
 
-    world_size = torch.distributed.get_world_size()
     num_local_physical_experts = old_expert_location_metadata.num_local_physical_experts
     num_gpu_per_node = world_size // nnodes
 
@@ -170,6 +198,7 @@ def _update_expert_weights_raw(
             num_gpu_per_node=num_gpu_per_node,
             rank=rank,
             world_size=world_size,
+            p2p_group=p2p_group,
             missing_logical_experts_info=missing_logical_experts_info,
             log_metrics=log_metrics,
         )
@@ -191,10 +220,13 @@ def update_expert_weights_single_layer(
     num_gpu_per_node: int,
     rank: int,
     world_size: Optional[int] = None,
+    p2p_group: Optional[torch.distributed.ProcessGroup] = None,
     missing_logical_experts_info: Optional[List[int]] = None,
     debug: bool = False,
     log_metrics: bool = False,
 ):
+    # `p2p_group=None` means the default world group; `src_rank`/`dst_rank`
+    # peers are ranks within `p2p_group` (global ranks when it is None).
     assert all(
         tensor.shape[0] == num_local_physical_experts
         for tensor in routed_experts_weights
@@ -355,7 +387,8 @@ def update_expert_weights_single_layer(
                     P2POp(
                         op=torch.distributed.irecv,
                         tensor=_get_tensor(temp_buffers, i, dst_expert_location),
-                        peer=src_rank,
+                        group=p2p_group,
+                        group_peer=src_rank,
                     )
                     for i in range(num_tensors)
                 ],
@@ -405,7 +438,8 @@ def update_expert_weights_single_layer(
                         tensor=_get_tensor(
                             routed_experts_weights, i, src_expert_location
                         ),
-                        peer=dst_rank,
+                        group=p2p_group,
+                        group_peer=dst_rank,
                     )
                     for dst_rank in all_dst_ranks
                     for i in range(num_tensors)
@@ -585,6 +619,12 @@ def _deduplicate_ordered(arr: List[int]):
     return output
 
 
+def _compute_node_count_of_group(group) -> int:
+    """Number of physical nodes spanned by the ranks of `group`."""
+    num_gpu_per_node = torch.distributed.get_world_size() // get_parallel().nnodes
+    return len({rank // num_gpu_per_node for rank in group.ranks})
+
+
 def _log_p2p_op_metrics(
     p2p_op_infos: List[Tuple[int, List[P2POp]]],
     num_gpu_per_node: int,
@@ -597,7 +637,7 @@ def _log_p2p_op_metrics(
     for direction, ops in _group_by(all_ops, _get_direction_from_op).items():
         nbytes_of_gpu = [0] * world_size
         for op in ops:
-            nbytes_of_gpu[op.peer] += op.tensor.nbytes
+            nbytes_of_gpu[op.group_peer] += op.tensor.nbytes
         nbytes_of_gpu = torch.tensor(nbytes_of_gpu, dtype=torch.int64)
 
         nbytes_of_node = einops.reduce(

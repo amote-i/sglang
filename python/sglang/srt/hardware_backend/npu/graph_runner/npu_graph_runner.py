@@ -157,13 +157,26 @@ class NPUGraphRunner(DecodeCudaGraphRunner):
             out = run_once_fn()
         return out
 
-    def _get_update_attr_name(self):
+    def _use_target_verify_attr(self) -> bool:
         if self.if_use_v2:
+            return True
+        # Hybrid-SWA MHA decode captures go through the FIA v2 kernel, whose
+        # graph-updatable seq-len input is the TARGET_VERIFY-style
+        # "actual_seq_kvlen" list, not the paged-attention "context_lens"
+        # tensor.
+        return (
+            self.use_fia
+            and self.model_runner.is_hybrid_swa
+            and self.model_runner.model_config.attention_arch == AttentionArch.MHA
+        )
+
+    def _get_update_attr_name(self):
+        if self._use_target_verify_attr():
             return self.attr_name["TARGET_VERIFY"]
         return self.attr_name[AttentionArch.MLA]
 
     def _get_update_attr_type(self):
-        if self.if_use_v2:
+        if self._use_target_verify_attr():
             return self.attr_type["TARGET_VERIFY"]
         return self.attr_type[AttentionArch.MLA]
 

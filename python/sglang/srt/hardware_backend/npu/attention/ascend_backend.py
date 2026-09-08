@@ -741,7 +741,10 @@ class AscendAttnBackend(AttentionBackend):
 
             # Update SWA mask: True = masked out (don't attend), False = attend
             seq_lens_int = seq_lens[:bs].int()
-            starts = torch.clamp(seq_lens_int - self.sliding_window_size, min=0)
+            # left_context counts trailing attendable tokens including the
+            # current one; sliding_window_size is exclusive of the current
+            # token, hence the +1 (HF sliding_window semantics).
+            starts = torch.clamp(seq_lens_int - self.sliding_window_size - 1, min=0)
             indices = self.graph_metadata["swa_indices"]
             start_exp = starts.unsqueeze(1)
             seq_exp = seq_lens_int.unsqueeze(1)
@@ -1508,7 +1511,9 @@ class AscendAttnBackend(AttentionBackend):
                     attn_output = attn_output.view(
                         -1, layer.tp_q_head_num * layer.v_head_dim
                     )
-            elif self.use_fa:
+            # flash_attn reads the cache through the full-pool page table; SWA
+            # layers keep their KV in the SWA pool, so they must not go there.
+            elif self.use_fa and not self._is_swa_layer(layer):
                 from flash_attn_npu_v3 import flash_attn_with_kvcache
 
                 q = q.reshape(-1, layer.tp_q_head_num, layer.qk_head_dim)
@@ -1562,6 +1567,9 @@ class AscendAttnBackend(AttentionBackend):
                     and forward_batch.encoder_lens is None
                     and layer.logit_cap == 0
                     and not getattr(self, "use_native_sdpa", False)
+                    # SWA layers keep their KV in the SWA pool; only native sdpa
+                    # translates full-pool indices via full_to_swa_mapping.
+                    and not self._is_swa_layer(layer)
                 ):
                     if not self.use_alibi:
                         query = q.reshape(-1, layer.tp_q_head_num * layer.qk_head_dim)
@@ -2294,7 +2302,12 @@ class AscendAttnBackend(AttentionBackend):
                     v,
                 )
 
-        if sinks is not None or self.is_hybrid_swa:
+        # The sink/learnable-sink kernels (FIA v2 with learnable_sink, or
+        # attention_sinks_triton) require either a real sinks tensor (GPT-OSS) or
+        # FIA. Plain hybrid SWA without FIA falls through to the regular path
+        # below, which serves SWA layers with block_tables_swa + a static
+        # swa_mask (capture-safe).
+        if sinks is not None or (self.is_hybrid_swa and self.use_fia):
             # Use SWA block tables if hybrid SWA is enabled for this layer
             if self._is_swa_layer(layer):
                 block_tables = self.forward_metadata.block_tables_swa
@@ -2336,33 +2349,64 @@ class AscendAttnBackend(AttentionBackend):
                 else:
                     sparse_mode = 3
 
-                attn_output, _ = torch_npu.npu_fused_infer_attention_score_v2(
-                    query,
-                    k_cache,
-                    v_cache,
-                    num_query_heads=layer.tp_q_head_num,
-                    num_key_value_heads=layer.tp_k_head_num,
-                    input_layout="TND",
-                    pre_tokens=(
-                        layer.sliding_window_size
-                        if layer.sliding_window_size != -1
-                        else FULL_ATTENTION_WINDOW
-                    ),
-                    next_tokens=(
-                        0 if layer.sliding_window_size == -1 else FULL_ATTENTION_WINDOW
-                    ),
-                    atten_mask=self.fia_mask.to(torch.int8),
-                    sparse_mode=sparse_mode,
-                    softmax_scale=layer.scaling,
-                    block_table=block_tables,
-                    block_size=self.page_size,
-                    actual_seq_qlen=actual_seq_lengths,
-                    actual_seq_kvlen=actual_seq_lengths_kv,
-                    learnable_sink=sinks,
-                )
-                attn_output = attn_output.view(
-                    -1, layer.tp_q_head_num * layer.v_head_dim
-                )
+                if sinks is None and layer.sliding_window_size != -1:
+                    # Decode with a single query per sequence (S1=1, e.g. bs=1)
+                    # makes the kernel ignore pre_tokens, so the window must be
+                    # encoded in the mask itself. Use the BSND layout with the
+                    # static swa_mask (capture-safe), mirroring the eager
+                    # forward_decode path; the TND split-fuse tiling rejects
+                    # full-length masks.
+                    attn_output, _ = torch_npu.npu_fused_infer_attention_score_v2(
+                        q.view(-1, 1, layer.tp_q_head_num, layer.qk_head_dim),
+                        k_cache,
+                        v_cache,
+                        num_query_heads=layer.tp_q_head_num,
+                        num_key_value_heads=layer.tp_k_head_num,
+                        input_layout="BSND",
+                        block_size=self.page_size,
+                        atten_mask=self.forward_metadata.swa_mask,
+                        sparse_mode=4,
+                        softmax_scale=layer.scaling,
+                        block_table=block_tables,
+                        actual_seq_qlen=[1] * q.shape[0],
+                        actual_seq_kvlen=actual_seq_lengths_kv,
+                        pre_tokens=layer.sliding_window_size,
+                        next_tokens=0,
+                    )
+                    attn_output = attn_output.view(
+                        -1, layer.tp_q_head_num * layer.v_head_dim
+                    )
+                else:
+                    # The band window is expressed via pre_tokens with
+                    # next_tokens=0 (matching forward_extend and the vLLM-Ascend
+                    # sparse_mode=4 decode reference). atten_mask must stay the
+                    # 2048-wide causal template required by the split-fuse
+                    # tiling (full-length masks are rejected by the kernel).
+                    attn_output, _ = torch_npu.npu_fused_infer_attention_score_v2(
+                        query,
+                        k_cache,
+                        v_cache,
+                        num_query_heads=layer.tp_q_head_num,
+                        num_key_value_heads=layer.tp_k_head_num,
+                        input_layout="TND",
+                        pre_tokens=(
+                            layer.sliding_window_size
+                            if layer.sliding_window_size != -1
+                            else FULL_ATTENTION_WINDOW
+                        ),
+                        next_tokens=0,
+                        atten_mask=self.fia_mask.to(torch.int8),
+                        sparse_mode=sparse_mode,
+                        softmax_scale=layer.scaling,
+                        block_table=block_tables,
+                        block_size=self.page_size,
+                        actual_seq_qlen=actual_seq_lengths,
+                        actual_seq_kvlen=actual_seq_lengths_kv,
+                        learnable_sink=sinks,
+                    )
+                    attn_output = attn_output.view(
+                        -1, layer.tp_q_head_num * layer.v_head_dim
+                    )
                 return attn_output
             else:
                 k_cache = self.token_to_kv_pool.get_key_buffer(layer.layer_id)
@@ -2622,7 +2666,10 @@ class AscendAttnBackend(AttentionBackend):
                         mask = self.ascend_attn_mask_builder.get_swa_mask(
                             self.forward_metadata.seq_lens,
                             max_model_len,
-                            layer.sliding_window_size,
+                            # left_context counts trailing attendable tokens
+                            # including the current one; sliding_window_size is
+                            # exclusive of the current token, hence the +1.
+                            layer.sliding_window_size + 1,
                         )
 
                     attn_out, _ = torch_npu.npu_fused_infer_attention_score_v2(
@@ -2667,6 +2714,57 @@ class AscendAttnBackend(AttentionBackend):
                         layer.tp_k_head_num,
                     )
                 return attn_out
+
+            if self._is_swa_layer(layer):
+                # SWA layers keep their KV in the SWA pool, whose slot indices
+                # differ from the full pool. Only block_tables_swa addresses it
+                # correctly; routing SWA layers to _npu_paged_attention or
+                # flash_attn (both take the full-pool block table) reads the
+                # wrong slots and garbles every decode step. Use FIA v2 with a
+                # band window instead of the slow native SDPA fallback.
+                block_tables = self.forward_metadata.block_tables_swa
+                if self.forward_metadata.seq_lens_cpu_int is None:
+                    actual_seq_len_kv = self.forward_metadata.seq_lens_cpu_list
+                else:
+                    actual_seq_len_kv = (
+                        self.forward_metadata.seq_lens_cpu_int.cpu().int().tolist()
+                    )
+                max_model_len = block_tables.shape[-1] * self.page_size
+                mask = self.ascend_attn_mask_builder.get_swa_mask(
+                    self.forward_metadata.seq_lens,
+                    max_model_len,
+                    # left_context counts trailing attendable tokens including
+                    # the current one; sliding_window_size is exclusive of the
+                    # current token, hence the +1.
+                    layer.sliding_window_size + 1,
+                )
+                attn_out, _ = torch_npu.npu_fused_infer_attention_score_v2(
+                    q.view(
+                        forward_batch.batch_size,
+                        -1,
+                        layer.tp_q_head_num,
+                        layer.qk_head_dim,
+                    ),
+                    k_cache.view(
+                        -1, self.page_size, layer.tp_k_head_num * layer.qk_head_dim
+                    ),
+                    v_cache.view(
+                        -1, self.page_size, layer.tp_v_head_num * layer.v_head_dim
+                    ),
+                    num_query_heads=layer.tp_q_head_num,
+                    num_key_value_heads=layer.tp_k_head_num,
+                    input_layout="BSND",
+                    block_size=self.page_size,
+                    atten_mask=mask,
+                    sparse_mode=4,
+                    softmax_scale=layer.scaling,
+                    block_table=block_tables,
+                    actual_seq_qlen=[1] * len(self.forward_metadata.seq_lens),
+                    actual_seq_kvlen=actual_seq_len_kv,
+                    pre_tokens=layer.sliding_window_size,
+                    next_tokens=0,
+                )
+                return attn_out.view(-1, layer.tp_q_head_num * layer.v_head_dim)
 
             if self.use_fia:
                 if self.forward_metadata.seq_lens_cpu_int is None:
@@ -2796,11 +2894,9 @@ class AscendAttnBackend(AttentionBackend):
                     enable_gqa=use_gqa,
                     causal=False,
                     sliding_window_size=layer.sliding_window_size,
-                    full_to_swa_mapping=(
-                        self.full_to_swa_index_mapping
-                        if self._is_swa_layer(layer)
-                        else None
-                    ),
+                    # Unreachable for SWA layers: the dedicated branch above
+                    # intercepts them before this fallback.
+                    full_to_swa_mapping=None,
                     logit_cap=layer.logit_cap,
                     logit_capping_method=layer.logit_capping_method,
                 )

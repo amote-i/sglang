@@ -531,33 +531,45 @@ def alloc_for_decode(batch: ScheduleBatch, token_per_req: int) -> torch.Tensor:
     seq_lens_gpu = batch.seq_lens
     bs = seq_lens_gpu.shape[0]
 
+    # Row coordinates. Encoder-decoder rows hold [encoder KV | decoder KV], so a
+    # decoder token's row position is encoder_lens[i] + its decoder position,
+    # while batch.seq_lens is decoder-relative. The paged allocator works in row
+    # space on both counts: the "starts a new page" test (seq_lens % page_size)
+    # and free_segment's assumption that a row position and its KV index sit in
+    # the same page. Probing last_loc without the encoder offset reads the
+    # encoder region instead, and the drift (encoder_lens % page_size) makes the
+    # release path free some pages twice and skip others.
+    if batch.model_config.is_encoder_decoder:
+        row_lens = batch.encoder_lens + seq_lens_gpu
+        row_lens_cpu = batch.seq_lens_cpu + torch.tensor(
+            batch.encoder_lens_cpu, dtype=torch.int64
+        )
+    else:
+        row_lens = seq_lens_gpu
+        row_lens_cpu = batch.seq_lens_cpu
+
     if _alloc_page_size(batch) == 1:
         # Non-paged allocation
         out_cache_loc = alloc_token_slots(batch.tree_cache, bs * token_per_req)
     else:
         # Paged allocation
         last_loc = batch.req_to_token_pool.req_to_token[
-            batch.req_pool_indices, seq_lens_gpu - 1
+            batch.req_pool_indices, row_lens - 1
         ]
-        seq_lens_next = seq_lens_gpu + token_per_req
+        seq_lens_next = row_lens + token_per_req
         out_cache_loc = alloc_paged_token_slots_decode(
             tree_cache=batch.tree_cache,
             seq_lens=seq_lens_next,
-            seq_lens_cpu=batch.seq_lens_cpu + token_per_req,
+            seq_lens_cpu=row_lens_cpu + token_per_req,
             last_loc=last_loc,
             token_per_req=token_per_req,
             req_pool_indices=batch.req_pool_indices,
             batch=batch,
         )
 
-    # Write to req_to_token_pool
-    if batch.model_config.is_encoder_decoder:
-        locs = batch.encoder_lens + seq_lens_gpu
-    else:
-        locs = seq_lens_gpu.clone()
-
+    # Write to req_to_token_pool, in the same row coordinates.
     batch.req_to_token_pool.write(
-        (batch.req_pool_indices, locs), out_cache_loc.to(torch.int32)
+        (batch.req_pool_indices, row_lens.clone()), out_cache_loc.to(torch.int32)
     )
 
     # DSV4-NPU hook: no-op on non-DSV4 paths.

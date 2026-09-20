@@ -4257,6 +4257,15 @@ class Scheduler(
                 msg_details += (
                     f", #new_token_ratio: {old_ratio:.4f} -> {new_token_ratio:.4f}"
                 )
+            # Which requests the policy chose is the policy's whole effect:
+            # list rid=priority pairs (bounded) so the length/priority victim
+            # ordering is observable from the summary line itself.
+            victim_sample = ", ".join(
+                f"rid={req.rid},priority={req.priority}" for req in retracted_reqs[:8]
+            )
+            if len(retracted_reqs) > 8:
+                victim_sample += f", ... (+{len(retracted_reqs) - 8} more)"
+            msg_details += f", retracted: [{victim_sample}]"
             logger.warning(msg_prefix + msg_details)
 
             for req in retracted_reqs:

@@ -570,16 +570,6 @@ class SchedulerPPMixin:
         self.pp_loop_size: int = (
             get_parallel().pp_size + get_parallel().pp_async_batch_depth
         )
-        # The only externally observable trace of --pp-async-batch-depth:
-        # the async PP event loop is built from this many slots, and its
-        # per-iteration branches key off depth > 0, so tests assert on this
-        # line to prove the configured depth reached the live loop.
-        logger.info(
-            "PP loop slots: %d (pp_size=%d + pp_async_batch_depth=%d)",
-            self.pp_loop_size,
-            get_parallel().pp_size,
-            get_parallel().pp_async_batch_depth,
-        )
         self.mbs = [None] * self.pp_loop_size
         self.last_mbs = [None] * self.pp_loop_size
         self.running_mbs = [

@@ -25,9 +25,10 @@ the two policies predict different standing victims:
 
 The completion-order assertion below (priority-0 is the last of the four to
 finish) therefore fails if --retraction-policy stops steering victim
-choice. The pre-existing "Testing retraction." warning proves the forced
-events actually reached the scheduler, so the ordering check cannot pass
-vacuously.
+choice. The log guard requires a forced event that retracted exactly one
+request, which is what an event looks like when memory is to spare and the
+policy alone picks the victim; a run in which no event ever fired is
+rejected instead of being read as a pass.
 
 [Test Category] Parameter
 [Test Target] --retraction-policy
@@ -79,9 +80,9 @@ class TestNpuRetractionPolicy(CustomTestCase):
         2: "As everyone knows, the capital of France is",
         3: "It is widely known and taught in schools that the capital of France is",
     }
-    # Uniform and generous: no request can hit its cap (or finish early)
-    # before enough forced events have accumulated to hold the standing
-    # victim clearly behind the other three.
+    # Uniform, and early stopping is disabled in the sampling params below:
+    # every request decodes all 64 tokens, so the four output lengths stay
+    # comparable and only the retraction events can separate the finishes.
     RETRACT_MAX_NEW_TOKENS = 64
 
     def test_priority_policy_holds_back_lowest_priority(self):
@@ -130,6 +131,7 @@ class TestNpuRetractionPolicy(CustomTestCase):
                             "sampling_params": {
                                 "temperature": 0,
                                 "max_new_tokens": self.RETRACT_MAX_NEW_TOKENS,
+                                "ignore_eos": True,
                             },
                         },
                         timeout=300,
@@ -143,19 +145,20 @@ class TestNpuRetractionPolicy(CustomTestCase):
 
                 self.assertIsNone(process.poll(), "Server crashed during test")
 
-                # The forced events must have reached the scheduler (this
-                # warning line is pre-existing), else the ordering assertion
-                # below would pass vacuously.
+                # An event that retracted exactly one request is the one
+                # whose victim the policy alone picked: memory is to spare,
+                # so the retract loop stops after its first pop.
                 out_log.flush()
                 err_log.flush()
                 out_log.seek(0)
                 err_log.seek(0)
                 log_text = out_log.read() + err_log.read()
                 self.assertIn(
-                    "Testing retraction.",
+                    "#retracted_reqs: 1,",
                     log_text,
-                    "SGLANG_TEST_RETRACT did not reach the scheduler, so no "
-                    "retraction event ever fired",
+                    "no forced retraction event retracted exactly one "
+                    "request, so the finish order below is not evidence for "
+                    "the retraction policy",
                 )
 
                 last_finisher = max(finish_times, key=finish_times.get)

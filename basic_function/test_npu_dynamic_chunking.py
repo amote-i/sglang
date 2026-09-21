@@ -35,7 +35,7 @@ import unittest
 import requests
 
 from sglang.srt.utils import kill_process_tree
-from sglang.test.ascend.test_ascend_utils import DEFAULT_MODEL_NAME_FOR_TEST
+from sglang.test.ascend.test_ascend_utils import LLAMA_3_1_8B_INSTRUCT_WEIGHTS_PATH
 from sglang.test.ci.ci_register import register_npu_ci
 from sglang.test.test_utils import (
     DEFAULT_TIMEOUT_FOR_SERVER_LAUNCH,
@@ -55,7 +55,7 @@ class TestNpuEnableDynamicChunking(CustomTestCase):
     [Test Target] --enable-dynamic-chunking
     """
 
-    model = DEFAULT_MODEL_NAME_FOR_TEST
+    model = LLAMA_3_1_8B_INSTRUCT_WEIGHTS_PATH
     base_url = DEFAULT_URL_FOR_TEST
     chunked_prefill_size = 1024
 

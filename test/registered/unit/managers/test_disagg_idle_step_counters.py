@@ -137,6 +137,14 @@ class TestSchedulerIdleStepCounters(CustomTestCase):
                             self.run_and_check(
                                 scheduler, event_loop, mode, pattern == "idle_cycle"
                             )
+                            # What --pp-async-batch-depth buys is the loop
+                            # shape: init_pp_loop_state builds it, and the
+                            # per-slot state it cycles through, out of
+                            # pp_size + depth slots. The schedule above is
+                            # sized from loop_size, so this also pins the
+                            # cycle length the loop actually ran.
+                            self.assertEqual(scheduler.pp_loop_size, loop_size)
+                            self.assertEqual(len(scheduler.running_mbs), loop_size)
                         # Transfers suppress housekeeping, not the idle flag.
                         self.assertEqual(
                             scheduler.on_idle.call_count,

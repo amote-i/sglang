@@ -1,6 +1,8 @@
 """
 Test the SWA memory pool options on NPU with a hybrid-SWA model
-(gemma-4-E2B-it: its layer_types mark most layers as sliding_attention):
+(Llama-4-Scout-17B-16E-Instruct: Llama4ForConditionalGeneration is in
+is_hybrid_swa_model's allowlist, and every 4th layer is a full-attention
+layer — 48 layers split into 12 full + 36 sliding-window, window 8192):
 --swa-full-tokens-ratio and --disable-hybrid-swa-memory.
 
 Both options configure the hybrid SWA memory pool:
@@ -24,15 +26,19 @@ logs at startup:
     full_layer_tokens;
   - an out-of-range ratio is rejected at startup for every model.
 
-Model note: gemma-3-4b-it cannot exercise these flags in this repo —
-is_hybrid_swa_model's allowlist only takes Gemma4 (no Gemma3), and the
-model override registry force-disables hybrid SWA memory for
-Gemma2/Gemma3 (arg_groups/model_overrides/gemma2_gemma3.py), so its
-hybrid pool never builds. gemma-4-E2B-it is whitelisted in
-is_hybrid_swa_model, its gemma4 override touches only the attention
-backend, and it has NPU runtime evidence in
-test/manual/ascend/llm_models/test_npu_gemma_4_e2b_llm.py (same
-popen_launch_server + ascend attention backend path as this test).
+Model note: this is the smallest hybrid-SWA model with NPU runtime
+evidence (meta-llama/Llama-4-Scout-17B-16E-Instruct is ~109B total MoE
+params, so it runs TP4 on the 4-NPU runner). The launch flags mirror the
+known-good NPU launch in
+test/registered/npu/llm_models/test_npu_llama4_scount_17b_16e.py
+(chat template, TP4, pinned context, ascend attention backend) and are
+identical across all launches below, so pool-size comparisons stay
+apples-to-apples. The ratio is a capacity knob independent of the
+swa:full layer counts, so every assertion below is model-agnostic;
+Llama-4's override only auto-selects an attention backend (we pass one
+explicitly) and cannot disable the hybrid pool. The SWA-chunk-cap pool
+mode, which would bypass --swa-full-tokens-ratio, requires an explicit
+--max-running-requests, which these launches never pass.
 
 [Test Category] Parameter
 [Test Target] --swa-full-tokens-ratio;--disable-hybrid-swa-memory
@@ -49,23 +55,30 @@ import unittest
 import requests
 
 from sglang.srt.utils import kill_process_tree
-from sglang.test.ascend.test_ascend_utils import GEMMA_4_E2B_WEIGHTS_PATH
+from sglang.test.ascend.test_ascend_utils import (
+    LLAMA_4_SCOUT_17B_16E_INSTRUCT_WEIGHTS_PATH,
+)
 from sglang.test.ci.ci_register import register_npu_ci
 from sglang.test.test_utils import (
-    DEFAULT_TIMEOUT_FOR_SERVER_LAUNCH,
     DEFAULT_URL_FOR_TEST,
     CustomTestCase,
     auto_config_device,
     popen_launch_server,
 )
 
-register_npu_ci(est_time=1800, suite="full-1-npu-a3", nightly=True)
+# Four full server launches of a TP4 109B MoE; launch timeout itself is
+# 1000s, matching the known-good Llama-4 NPU run.
+register_npu_ci(est_time=3600, suite="full-4-npu-a3", nightly=True)
 
 SWA_POOL_LOG = re.compile(
     r"Use sliding window memory pool\. full_layer_tokens=(\d+), "
     r"swa_layer_tokens=(\d+)"
 )
 MAX_TOKENS_LOG = re.compile(r"max_total_num_tokens=(\d+),")
+
+# Mirrors timeout_for_server_launch=1000 of the known-good Llama-4 NPU
+# launch (DEFAULT_TIMEOUT_FOR_SERVER_LAUNCH=600 is sized for small models).
+LAUNCH_TIMEOUT = 1000
 
 
 class TestNpuSwaMemoryOptions(CustomTestCase):
@@ -76,7 +89,7 @@ class TestNpuSwaMemoryOptions(CustomTestCase):
     [Test Target] --swa-full-tokens-ratio;--disable-hybrid-swa-memory
     """
 
-    model = GEMMA_4_E2B_WEIGHTS_PATH
+    model = LLAMA_4_SCOUT_17B_16E_INSTRUCT_WEIGHTS_PATH
     base_url = DEFAULT_URL_FOR_TEST
 
     @classmethod
@@ -92,18 +105,22 @@ class TestNpuSwaMemoryOptions(CustomTestCase):
             process = popen_launch_server(
                 cls.model,
                 cls.base_url,
-                timeout=DEFAULT_TIMEOUT_FOR_SERVER_LAUNCH,
+                timeout=LAUNCH_TIMEOUT,
                 other_args=[
-                    "--trust-remote-code",
+                    # Known-good Llama-4 NPU launch, identical across all
+                    # runs below (see module docstring).
+                    "--chat-template",
+                    "llama-4",
+                    "--tp-size",
+                    "4",
+                    "--context-length",
+                    "8192",
                     "--attention-backend",
                     "ascend",
                     "--disable-cuda-graph",
-                    # Mirrors the known-good NPU launch of this model in
-                    # test/manual/ascend/llm_models/test_npu_gemma_4_e2b_llm.py;
-                    # identical across all launches below, so pool-size
-                    # comparisons stay apples-to-apples.
                     "--mem-fraction-static",
-                    "0.7",
+                    "0.9",
+                    "--disable-radix-cache",
                 ]
                 + extra_args,
                 return_stdout_stderr=(out_log, err_log),
@@ -149,8 +166,7 @@ class TestNpuSwaMemoryOptions(CustomTestCase):
         200 with a non-empty completion proves prefill/decode/detokenize
         run on the configured pool. The pool geometry itself is what the
         numeric log assertions observe; a knowledge probe (e.g. expecting
-        a specific fact) would only make this parameter test flaky on a
-        ~2B model."""
+        a specific fact) would only make this parameter test flaky."""
         gen_resp = requests.post(
             f"{DEFAULT_URL_FOR_TEST}/generate",
             json={
@@ -285,7 +301,8 @@ class TestNpuSwaMemoryOptions(CustomTestCase):
 
     def test_ratio_out_of_range_rejected(self):
         """--swa-full-tokens-ratio 1.5 → rejected by the range validation
-        (0 < ratio <= 1), which runs for every model at startup."""
+        (0 < ratio <= 1), which runs for every model at startup, before any
+        weights load (so no TP sizing is needed for this launch)."""
         self._expect_startup_failure(
             ["--swa-full-tokens-ratio", "1.5"],
             "--swa-full-tokens-ratio should be in range (0, 1.0].",

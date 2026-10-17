@@ -1151,5 +1151,216 @@ class TestVmmConsumerCount(unittest.TestCase):
             self.assertEqual(proxy._acknowledgement_range(4), (0, 4))
 
 
+class TestIpcStagingHashOrdering(unittest.TestCase):
+    """IPC transport staging resolves item hashes after the wire form is set.
+
+    A pool-miss fallback must hash the single host copy it staged; hashing
+    the device tensor first would add an extra blocking device read over
+    the pure-CPU transport.
+    """
+
+    @staticmethod
+    def _make_processor(use_cuda_ipc: bool):
+        from sglang.srt.multimodal.processors.base_processor import (
+            BaseMultimodalProcessor,
+        )
+
+        class _Proc(BaseMultimodalProcessor):
+            async def process_mm_data_async(self, *args, **kwargs):
+                raise NotImplementedError
+
+        proc = _Proc.__new__(_Proc)
+        proc.use_cuda_ipc = use_cuda_ipc
+        proc.use_ipc_pool_handle_cache = False
+        return proc
+
+    def test_pool_miss_hashes_staged_host_copy(self):
+        from sglang.srt.managers.schedule_batch import (
+            Modality,
+            MultimodalDataItem,
+            MultimodalInputFormat,
+        )
+
+        proc = self._make_processor(use_cuda_ipc=True)
+        original = torch.arange(8, dtype=torch.float32)
+        item = MultimodalDataItem(
+            modality=Modality.IMAGE,
+            feature=original,
+            format=MultimodalInputFormat.PROCESSOR_OUTPUT,
+        )
+        proc._wrap_tensor_for_cuda_ipc = lambda tensor: tensor.clone()
+
+        hash_sources = []
+        real = MultimodalDataItem.set_pad_value_from_tensors
+
+        def spy(self, feature, precomputed_embeddings):
+            hash_sources.append(feature)
+            real(self, feature, precomputed_embeddings)
+
+        with patch.object(MultimodalDataItem, "set_pad_value_from_tensors", spy):
+            proc._prepare_mm_items_for_transport([item], set_pad_values=True)
+
+        self.assertIsNot(item.feature, original)
+        # The staged host copy is the hash source, not the device original.
+        self.assertIs(hash_sources[0], item.feature)
+        reference = MultimodalDataItem(
+            modality=Modality.IMAGE,
+            feature=torch.arange(8, dtype=torch.float32),
+            format=MultimodalInputFormat.PROCESSOR_OUTPUT,
+        )
+        reference.set_pad_value()
+        self.assertEqual(item.hash, reference.hash)
+        self.assertEqual(item.pad_value, reference.pad_value)
+
+    def test_cuda_pool_miss_hashes_original_device_tensor(self):
+        """A CUDA fallback must hash the device tensor, not the host copy.
+
+        CUDA hashes flow through gpu_tensor_hash, whose value differs from
+        the host sha256; hashing the staged host copy on a pool miss would
+        change the hash/pad_value of the same image between pool states and
+        break prefix-cache and embedding-cache hits.
+        """
+
+        class _FakeCudaTensor(torch.Tensor):
+            @property
+            def is_cuda(self):
+                return True
+
+        from sglang.srt.managers.schedule_batch import (
+            Modality,
+            MultimodalDataItem,
+            MultimodalInputFormat,
+        )
+
+        proc = self._make_processor(use_cuda_ipc=True)
+        original = torch.arange(8, dtype=torch.float32).as_subclass(_FakeCudaTensor)
+        item = MultimodalDataItem(
+            modality=Modality.IMAGE,
+            feature=original,
+            format=MultimodalInputFormat.PROCESSOR_OUTPUT,
+        )
+        proc._wrap_tensor_for_cuda_ipc = lambda tensor: tensor.clone()
+
+        hash_sources = []
+
+        def spy(self, feature, precomputed_embeddings):
+            hash_sources.append(feature)
+
+        with patch.object(MultimodalDataItem, "set_pad_value_from_tensors", spy):
+            proc._prepare_mm_items_for_transport([item], set_pad_values=True)
+
+        self.assertIsNot(item.feature, original)
+        self.assertIs(hash_sources[0], original)
+
+    def test_pool_hit_hashes_pre_staging_tensor(self):
+        from sglang.srt.managers.schedule_batch import (
+            Modality,
+            MultimodalDataItem,
+            MultimodalInputFormat,
+        )
+        from sglang.srt.multimodal.transport.npu_ipc import NpuIpcTensorTransportProxy
+
+        class _StubProxy(NpuIpcTensorTransportProxy):
+            def __init__(self):
+                pass  # Only the isinstance tag matters here.
+
+        proc = self._make_processor(use_cuda_ipc=True)
+        original = torch.arange(8, dtype=torch.float32)
+        item = MultimodalDataItem(
+            modality=Modality.IMAGE,
+            feature=original,
+            format=MultimodalInputFormat.PROCESSOR_OUTPUT,
+        )
+        proc._wrap_tensor_for_cuda_ipc = lambda tensor: _StubProxy()
+
+        hash_sources = []
+        real = MultimodalDataItem.set_pad_value_from_tensors
+
+        def spy(self, feature, precomputed_embeddings):
+            hash_sources.append(feature)
+            real(self, feature, precomputed_embeddings)
+
+        with patch.object(MultimodalDataItem, "set_pad_value_from_tensors", spy):
+            proc._prepare_mm_items_for_transport([item], set_pad_values=True)
+
+        self.assertIsInstance(item.feature, _StubProxy)
+        # Hashing the proxy would reconstruct it; the pre-staging tensor is used.
+        self.assertIs(hash_sources[0], original)
+
+    def test_finalize_ipc_hashes_after_staging_and_skips_precompute(self):
+        from sglang.srt.managers.schedule_batch import (
+            Modality,
+            MultimodalDataItem,
+            MultimodalInputFormat,
+        )
+
+        proc = self._make_processor(use_cuda_ipc=True)
+        events = []
+
+        def fake_wrap(tensor):
+            events.append("wrap")
+            return tensor.clone()
+
+        proc._postprocess_mm_items_before_transport = lambda mm_items, *, images: (
+            mm_items
+        )
+        proc._wrap_tensor_for_cuda_ipc = fake_wrap
+        proc._precompute_hashes_before_cpu_transfer = lambda mm_items: events.append(
+            "precompute"
+        )
+
+        item = MultimodalDataItem(
+            modality=Modality.IMAGE,
+            feature=torch.arange(4.0),
+            format=MultimodalInputFormat.PROCESSOR_OUTPUT,
+        )
+
+        def hash_spy(self, feature, precomputed_embeddings):
+            events.append("hash")
+
+        with patch.object(MultimodalDataItem, "set_pad_value_from_tensors", hash_spy):
+            proc._finalize_mm_items([item], images=[])
+
+        self.assertEqual(events, ["wrap", "hash"])
+
+    def test_finalize_non_ipc_hashes_before_staging(self):
+        from sglang.srt.managers.schedule_batch import (
+            Modality,
+            MultimodalDataItem,
+            MultimodalInputFormat,
+        )
+
+        proc = self._make_processor(use_cuda_ipc=False)
+        events = []
+
+        def fake_wrap(tensor):
+            events.append("wrap")
+            return tensor
+
+        proc._postprocess_mm_items_before_transport = lambda mm_items, *, images: (
+            mm_items
+        )
+        proc._wrap_tensor_for_cuda_ipc = fake_wrap
+        proc._precompute_hashes_before_cpu_transfer = lambda mm_items: events.append(
+            "precompute"
+        )
+
+        item = MultimodalDataItem(
+            modality=Modality.IMAGE,
+            feature=torch.arange(4.0),
+            format=MultimodalInputFormat.PROCESSOR_OUTPUT,
+        )
+
+        def hash_spy(self):
+            events.append("hash")
+
+        with patch.object(MultimodalDataItem, "set_pad_value", hash_spy):
+            proc._finalize_mm_items([item], images=[])
+
+        # The non-ipc staging helper returns before wrapping anything; the
+        # hash and precompute step both run ahead of transport.
+        self.assertEqual(events, ["hash", "precompute"])
+
+
 if __name__ == "__main__":
     unittest.main()

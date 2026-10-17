@@ -434,6 +434,16 @@ class MultimodalDataItem(msgspec.Struct, kw_only=True, dict=True, array_like=Tru
         return len([item for item in flatten_nested_list(l) if item is not None]) == 0
 
     def set_pad_value(self):
+        self.set_pad_value_from_tensors(self.feature, self.precomputed_embeddings)
+
+    def set_pad_value_from_tensors(self, feature, precomputed_embeddings):
+        """Resolve the hash against explicit tensors instead of the item fields.
+
+        IPC transport staging calls this after deciding the wire form: hashing
+        the fields directly would reconstruct a pool proxy (a full copy plus
+        stream drains) just to hash it, or re-read the device tensor the
+        fallback already copied to the host.
+        """
         if self.pad_value is not None:
             return
 
@@ -441,8 +451,8 @@ class MultimodalDataItem(msgspec.Struct, kw_only=True, dict=True, array_like=Tru
 
         self.hash = resolve_multimodal_item_hash(
             existing_hash=self.hash,
-            feature=self.feature,
-            precomputed_embeddings=self.precomputed_embeddings,
+            feature=feature,
+            precomputed_embeddings=precomputed_embeddings,
         )
         self.pad_value = _compute_pad_value(self.hash)
 

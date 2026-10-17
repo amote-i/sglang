@@ -46,10 +46,10 @@ from sglang.srt.multimodal.transport.cuda_ipc import (
 from sglang.srt.multimodal.transport.cuda_ipc import (
     MmItemMemoryPool as CudaMmItemMemoryPool,
 )
+from sglang.srt.multimodal.transport.memory_pool import get_mm_feature_consumer_count
 from sglang.srt.multimodal.transport.npu_ipc import (
     MmItemMemoryPool as NpuMmItemMemoryPool,
 )
-from sglang.srt.multimodal.transport.memory_pool import get_mm_feature_consumer_count
 from sglang.srt.runtime_context import (
     get_exec,
     get_mm,
@@ -1987,6 +1987,15 @@ class BaseMultimodalProcessor(ABC):
             images=images,
         )
 
+        if self.use_cuda_ipc:
+            # Stage the transport first and resolve the item hashes from the
+            # staged values afterwards (_set_pad_values_after_staging).
+            # Hashing first would read the device tensor once for the hash
+            # and, on a pool-miss fallback, once more for the CPU transport
+            # copy -- the fallback then costs an extra device read over the
+            # pure-CPU transport.
+            return self._prepare_mm_items_for_transport(mm_items, set_pad_values=True)
+
         for item in mm_items:
             if item.format in (
                 MultimodalInputFormat.PROCESSOR_OUTPUT,
@@ -2007,9 +2016,16 @@ class BaseMultimodalProcessor(ABC):
         return mm_items
 
     def _prepare_mm_items_for_transport(
-        self, mm_items: List[MultimodalDataItem]
+        self,
+        mm_items: List[MultimodalDataItem],
+        *,
+        set_pad_values: bool = False,
     ) -> List[MultimodalDataItem]:
-        """Wrap final GPU features, rolling back every lease if one wrap fails."""
+        """Wrap final GPU features, rolling back every lease if one wrap fails.
+
+        With ``set_pad_values`` the item hashes are resolved after staging,
+        against the pre-staging tensors (see ``_set_pad_values_after_staging``).
+        """
         if not self.use_cuda_ipc:
             return mm_items
 
@@ -2028,6 +2044,10 @@ class BaseMultimodalProcessor(ABC):
                     wrapped = self._wrap_tensor_for_cuda_ipc(tensor)
                     setattr(item, field, wrapped)
                     updates.append((item, field, tensor, wrapped))
+
+            if set_pad_values:
+                self._set_pad_values_after_staging(mm_items, updates)
+            return mm_items
         except BaseException as error:
             rollback_errors = []
             for item, field, tensor, wrapped in reversed(updates):
@@ -2045,6 +2065,49 @@ class BaseMultimodalProcessor(ABC):
                 raise error from rollback_errors[0]
             raise
         return mm_items
+
+    def _set_pad_values_after_staging(
+        self,
+        mm_items: List[MultimodalDataItem],
+        updates: List[Tuple[MultimodalDataItem, str, torch.Tensor, Any]],
+    ) -> None:
+        """Resolve item hashes after transport staging decided the wire form.
+
+        A pool hit hashes the pre-staging tensor (hashing the proxy would
+        reconstruct it); a pool miss hashes the single host copy the fallback
+        already staged, so the fallback adds no device read over the pure-CPU
+        transport.
+        """
+        hashable_formats = (
+            MultimodalInputFormat.PROCESSOR_OUTPUT,
+            MultimodalInputFormat.PRECOMPUTED_EMBEDDING,
+        )
+        hash_sources: Dict[int, Dict[str, Any]] = {}
+        for staged_item, field, tensor, wrapped in updates:
+            if staged_item.format not in hashable_formats:
+                continue
+            # Hash the staged host copy only when it is a real tensor AND the
+            # pre-staging tensor was not CUDA: CUDA hashes must keep flowing
+            # through gpu_tensor_hash on the device tensor so a pool hit and
+            # a pool-miss fallback agree (the hash keys the prefix and
+            # embedding caches). Anything else -- proxies, test doubles --
+            # hashes the pre-staging tensor.
+            item_sources = hash_sources.setdefault(id(staged_item), {})
+            item_sources[field] = (
+                wrapped
+                if isinstance(wrapped, torch.Tensor) and not tensor.is_cuda
+                else tensor
+            )
+        for item in mm_items:
+            if item.format not in hashable_formats:
+                continue
+            item_sources = hash_sources.get(id(item), {})
+            precomputed = item_sources.get(
+                "precomputed_embeddings", item.precomputed_embeddings
+            )
+            item.set_pad_value_from_tensors(
+                item_sources.get("feature", item.feature), precomputed
+            )
 
     async def process_and_combine_mm_data_async(
         self,

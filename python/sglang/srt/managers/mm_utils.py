@@ -868,7 +868,11 @@ def tensor_hash(tensor_list) -> int:
         tensors = [
             x.flatten() if isinstance(x, torch.Tensor) else x for x in tensor_list
         ]
-        # GPU path: concat + triton hash (unchanged)
+        # GPU path: concat + triton hash (unchanged). NPU tensors fall
+        # through to the host path on purpose: the hash must stay identical
+        # to the CPU-transport result (it keys the preprocess/embedding
+        # caches and derives pad_value), and there is no NPU port of the
+        # triton device hash.
         if any(isinstance(t, torch.Tensor) and t.is_cuda for t in tensors):
             tensor = torch.concat(tensors)
             return gpu_tensor_hash(tensor.cuda())

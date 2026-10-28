@@ -25,7 +25,7 @@ from sglang.srt.sampling.watermarking.config import (
     MAX_WATERMARK_CONTEXT_WINDOW,
     parse_watermark_key,
 )
-from sglang.srt.utils.common import torch_release
+from sglang.srt.utils.common import is_cuda, torch_release
 from sglang.srt.utils.runai_utils import is_runai_obj_uri
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ def check_watermark_server_args(server_args: Any) -> None:
     if not cfg.enable_watermark:
         return
 
-    if cfg.device != "cuda":
+    if is_cuda() and cfg.device != "cuda":
         raise ValueError(
             f"--enable-watermark requires --device cuda, got {cfg.device!r}"
         )

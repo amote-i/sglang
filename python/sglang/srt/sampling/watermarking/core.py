@@ -735,7 +735,10 @@ class WatermarkState:
 
     def _ensure_selection_buffers(
         self, batch_size: int, vocab_size: int
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
+        if not self.token_ids.is_cuda:
+            return None, None, None
+
         from sglang.kernels.ops.sampling.textseal_selector import (
             watermark_selector_num_splits,
         )

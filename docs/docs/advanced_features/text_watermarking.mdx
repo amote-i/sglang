@@ -89,7 +89,7 @@ A low p-value is evidence that the text carries the keyed watermark. It is not a
 
 ## Server configuration
 
-`--enable-watermark` turns the feature on; every other watermark setting lives in one JSON object passed with `--watermark-config`, either as a file path or inline. Restrict the file to the server account and launch a CUDA server:
+`--enable-watermark` turns the feature on; every other watermark setting lives in one JSON object passed with `--watermark-config`, either as a file path or inline. Restrict the file to the server account and launch the server:
 
 ```json
 {
@@ -347,7 +347,8 @@ A detector written from scratch instead of reusing this package must implement t
 | Diffusion LLM | Rejected | Startup validation fails closed. |
 | PD disaggregation | Rejected | Startup validation fails closed because watermark state is not transferred between workers. |
 | Embedded Rust API server | Rejected | Startup validation fails closed. |
-| Non-CUDA devices | Rejected | Startup validation fails closed. |
+| Ascend NPU | Verified | Runs the PyTorch reference selector; startup validation, key handling, truncation, and detection follow the same contract as CUDA. |
+| Other non-CUDA devices | Untested | Accepted on hosts without CUDA and routed to the PyTorch reference selector; `--device cuda` is required only on CUDA hosts. |
 
 In speculative decoding, verification clones the target logits before forcing, so target-model log-probability computation still sees the pre-watermark distribution. Each draft node gets its own context, rebuilt from its ancestors in the verify tree. Repeated-context admission is conservative across the whole tree: once a context hash appears in an earlier row, later rows with the same hash are not forced, even on sibling branches. This keeps duplicate entries out of the history, but reconvergent wide trees may carry less signal.
 
@@ -395,8 +396,10 @@ On an 8x H200 node with public `deepseek-ai/DeepSeek-V4.1-Flash`, TP8 and EP8, D
 
 A sampled DSPARK draft token is accepted on a forced row only when it equals the watermarked token, so the accept-length change depends on how closely the draft distribution tracks the target.
 
+These measurements use the fused Triton selector on CUDA nodes. An Ascend NPU runs the same contract through the PyTorch reference selector, so its throughput differs; benchmark the deployment before setting capacity targets.
+
 ## See also
 
 The fused Triton selector is adapted from Meta's Apache-2.0 [TextSeal](https://github.com/facebookresearch/textseal) implementation and re-implemented on the hash contract above, so detection follows this page rather than TextSeal's own tooling.
 
-The runtime and reference detector live in `python/sglang/srt/sampling/watermarking/`. Registered coverage lives in `test/registered/kernels/ops/sampling/test_watermark_*.py` and `test/registered/e2e/openai_server/test_watermark.py`.
+The runtime and reference detector live in `python/sglang/srt/sampling/watermarking/`. Registered coverage lives in `test/registered/unit/sampling/test_watermark_state.py` (CUDA and NPU), `test/registered/kernels/ops/sampling/test_watermark_selector.py`, `test/registered/e2e/openai_server/test_watermark.py`, and `test/registered/npu/basic_function/sampling/test_npu_watermark.py`.

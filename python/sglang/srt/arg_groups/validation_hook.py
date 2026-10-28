@@ -38,9 +38,9 @@ def check_watermark_server_args(server_args: Any) -> None:
     if not cfg.enable_watermark:
         return
 
-    if cfg.device != "cuda":
+    if cfg.device not in ("cuda", "npu"):
         raise ValueError(
-            f"--enable-watermark requires --device cuda, got {cfg.device!r}"
+            f"--enable-watermark requires --device cuda or npu, got {cfg.device!r}"
         )
     if cfg.watermark_key is not None:
         parse_watermark_key(cfg.watermark_key)

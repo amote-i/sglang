@@ -593,7 +593,7 @@ def eagle_sample(
         if batch.return_logprob:
             # compute_spec_logprobs reads logits_output after verify.
             next_token_logits = next_token_logits.clone()
-        if next_token_logits.is_cuda:
+        if _is_cuda and next_token_logits.is_cuda:
             watermark_context_hashes, watermark_selected = (
                 watermark_state.force_speculative_from_tree(
                     logits=next_token_logits,

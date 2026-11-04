@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import logging
 from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 import msgspec
 import torch
 
-from sglang.srt.utils.common import is_cuda
+from sglang.srt.utils.common import is_npu
 
 from .config import (
     MAX_WATERMARKED_CONTEXTS_PER_REQUEST,
@@ -32,11 +33,13 @@ WATERMARK_CONTAINER_FIELD_NAMES = frozenset(
 )
 _SCALAR_TYPES = frozenset({int, float, str, bool, bytes, type(None)})
 
-_is_cuda = is_cuda()
+logger = logging.getLogger(__name__)
 
 
-def _is_cuda_tensor(tensor: torch.Tensor) -> bool:
-    return _is_cuda and tensor.is_cuda
+def _use_fast_path(tensor: torch.Tensor) -> bool:
+    # is_npu() stays lazy because an import-time call would cache False before
+    # torch_npu loads and poison every later is_npu() reader.
+    return not is_npu() and tensor.is_cuda
 
 
 def redact_watermark_secrets(value: Any, *, in_watermark_config: bool = False) -> Any:
@@ -435,7 +438,7 @@ def force_watermark_tokens(
     output_token_ids: Optional[torch.Tensor] = None,
     max_probability: float = 1.0,
 ) -> torch.Tensor:
-    if _is_cuda_tensor(logits):
+    if _use_fast_path(logits):
         from sglang.kernels.ops.sampling.textseal_selector import (
             force_watermark_tokens_triton,
         )
@@ -569,8 +572,14 @@ class WatermarkState:
         self.partial_token_ids_buffer = torch.empty(0, dtype=torch.int32, device=device)
         self.output_token_ids_buffer = torch.empty(0, dtype=torch.int32, device=device)
         self.chain_masks: dict[int, torch.Tensor] = {}
-        if vocab_size > 0 and _is_cuda_tensor(self.token_ids):
+        if vocab_size > 0 and _use_fast_path(self.token_ids):
             self._ensure_selection_buffers(max_num_reqs, vocab_size)
+        elif vocab_size > 0:
+            logger.info(
+                "Watermarking uses the PyTorch reference selector on %s; the "
+                "fused Triton selector requires a CUDA-family device.",
+                self.token_ids.device,
+            )
 
     def prompt_tails(self, batch: ScheduleBatch) -> Optional[list[Optional[list[int]]]]:
         if not batch.forward_mode.is_extend_without_speculative():
@@ -745,7 +754,7 @@ class WatermarkState:
     def _ensure_selection_buffers(
         self, batch_size: int, vocab_size: int
     ) -> tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
-        if not _is_cuda_tensor(self.token_ids):
+        if not _use_fast_path(self.token_ids):
             return None, None, None
 
         from sglang.kernels.ops.sampling.textseal_selector import (
@@ -1029,7 +1038,7 @@ class WatermarkState:
         # Non-CUDA tensors (e.g. on Ascend NPU, where transfer_to_npu aliases
         # Tensor.is_cuda) must take the torch reference path; the Triton
         # selector module below may not even import on those hosts.
-        if not _is_cuda_tensor(logits):
+        if not _use_fast_path(logits):
             return self._force_speculative_reference(
                 logits=logits,
                 req_pool_indices=req_pool_indices,
@@ -1115,7 +1124,7 @@ class WatermarkState:
         accept_index: torch.Tensor,
         accept_lens: torch.Tensor,
     ) -> None:
-        if _is_cuda_tensor(self.token_ids):
+        if _use_fast_path(self.token_ids):
             from sglang.kernels.ops.sampling.textseal_selector import (
                 record_speculative_watermark_contexts_triton,
             )
@@ -1145,7 +1154,7 @@ class WatermarkState:
         accept_tokens: torch.Tensor,
         accept_lens: torch.Tensor,
     ) -> None:
-        if _is_cuda_tensor(self.token_ids):
+        if _use_fast_path(self.token_ids):
             from sglang.kernels.ops.sampling.textseal_selector import (
                 append_speculative_watermark_tokens_triton,
             )
@@ -1234,7 +1243,7 @@ class WatermarkState:
             self._ensure_selection_buffers(logits.shape[0], logits.shape[1])
         )
         keys_b, mixing_thresholds = self._dual_key_rows(req_pool_indices)
-        if _is_cuda_tensor(logits):
+        if _use_fast_path(logits):
             from sglang.kernels.ops.sampling.textseal_selector import (
                 can_use_finite_topk_watermark,
                 force_watermark_tokens_with_state_triton,
@@ -1319,7 +1328,7 @@ class WatermarkState:
         req_pool_indices: torch.Tensor,
         token_ids: torch.Tensor,
     ) -> None:
-        if _is_cuda_tensor(self.token_ids):
+        if _use_fast_path(self.token_ids):
             from sglang.kernels.ops.sampling.textseal_selector import (
                 append_watermark_tokens_triton,
             )

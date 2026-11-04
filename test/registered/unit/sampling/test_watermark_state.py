@@ -396,6 +396,67 @@ def test_speculative_slow_path_forces_watermark_tokens():
     assert torch.isfinite(logits).sum(dim=1).tolist() == [1, 1, 64, 1]
 
 
+def test_speculative_from_tree_dedups_repeated_contexts():
+    """Covers the force_speculative_from_tree entry on every device: the fused
+    Triton path on CUDA and the torch reference early-exit on NPU."""
+    vocab_size = 257  # keeps max_top_k < vocab so CUDA takes the fused path
+    draft_token_num = 4
+    req_pool_indices = torch.tensor([1], dtype=torch.int32, device=_DEVICE)
+    state = WatermarkState(
+        max_num_reqs=4,
+        context_window=4,
+        max_contexts_per_req=16,
+        key="0123456789abcdef",
+        device=_DEVICE,
+        default_enabled=True,
+    )
+    state.init_from_prompt(req_pool_indices, [[10, 11, 12, 13]])
+
+    draft_tokens = torch.tensor([30, 31, 31, 33], dtype=torch.int32, device=_DEVICE)
+    positions = torch.tensor([6, 7, 7, 8], dtype=torch.int64, device=_DEVICE)
+    tree_rows = (
+        (True, False, False, False),
+        (True, True, False, False),
+        (True, False, True, False),
+        (True, True, False, True),
+    )
+    custom_mask = torch.tensor(
+        [value for row in tree_rows for value in (True,) * 6 + row],
+        dtype=torch.bool,
+        device=_DEVICE,
+    )
+    sampling_info = SimpleNamespace(
+        temperatures=torch.ones((1, 1), device=_DEVICE),
+        top_ks=torch.tensor([64], dtype=torch.int32, device=_DEVICE),
+        top_ps=torch.ones(1, device=_DEVICE),
+        min_ps=torch.zeros(1, device=_DEVICE),
+        max_top_k=64,
+        watermark_keys=None,
+        watermark_context_windows=None,
+        watermark_enabled=None,
+        has_watermark_candidates=True,
+    )
+
+    logits = torch.zeros((draft_token_num, vocab_size), device=_DEVICE)
+    hashes, selected = state.force_speculative_from_tree(
+        logits=logits,
+        req_pool_indices=req_pool_indices,
+        draft_tokens=draft_tokens,
+        custom_mask=custom_mask,
+        positions=positions,
+        sampling_info=sampling_info,
+        draft_token_num=draft_token_num,
+        full_mask=True,
+    )
+
+    # Same tree as the slow-path test above: rows 1 and 2 build the same
+    # context, so the repeated-context rule leaves row 2 unforced on both the
+    # fused and reference paths.
+    assert selected.tolist() == [True, True, False, True]
+    assert hashes[1].item() == hashes[2].item()
+    assert torch.isfinite(logits).sum(dim=1).tolist() == [1, 1, vocab_size, 1]
+
+
 @skip_on_npu
 @pytest.mark.parametrize("block_verification", [False, True])
 def test_dspark_chain_commits_non_speculative_contexts(block_verification):

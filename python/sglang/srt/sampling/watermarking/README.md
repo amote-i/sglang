@@ -65,7 +65,7 @@ The [operator guide's detector specification](../../../../../docs/docs/advanced_
 - **Repeated-context masking.** A context hash is forced at most once per request. Repeated contexts use ordinary sampling, preventing a deterministic short cycle from repeatedly excluding EOS. Only forced contexts enter the history.
 - **Greedy bypass.** Rows normalized to `top_k <= 1`, including `temperature=0`, use ordinary greedy selection and are not recorded.
 - **Entropy gate.** A row uses ordinary sampling when its largest truncated probability exceeds the server's `max_probability`. Skipped contexts remain eligible for a later higher-entropy occurrence.
-- **Speculative decoding.** NGRAM, EAGLE, EAGLE3, NEXTN, and DSPARK reconstruct verify-row contexts from the committed ring tail, tree mask, draft tokens, and positions. DSPARK verifies a linear chain, so its rows use a lower-triangular mask, and its rejection-sampling accept emits the forced token on every forced row. Normal decode preserves a clone for logprobs while speculative decode forces a clone, so both report the pre-watermark target distribution. Fused kernels admit contexts and append only accepted tokens.
+- **Speculative decoding.** NGRAM, EAGLE, EAGLE3, NEXTN, and DSPARK reconstruct verify-row contexts from the committed ring tail, tree mask, draft tokens, and positions. DSPARK verifies a linear chain, so its rows use a lower-triangular mask, and its rejection-sampling accept emits the forced token on every forced row. Normal decode preserves a clone for logprobs while speculative decode forces a clone, so both report the pre-watermark target distribution. On CUDA-family devices (CUDA, ROCm) fused kernels admit contexts and append only accepted tokens; on Ascend NPU the same state is updated eagerly with PyTorch ops.
 - **Selector paths.** Finite `top_k <= 8,192` uses `torch.topk`, canonicalizes boundary ties, and performs small-k truncation. Unlimited top-k retains full-vocabulary sorting. Both paths use the same hash and selection contract.
 - **Disabled-batch exit.** A host-side candidate bit follows filtering and merging. Fully disabled or greedy-only batches skip prompt initialization, verify cloning, selector work, and append kernels.
 - **Retraction and slot reuse.** Re-prefill rebuilds the distinct-context history from accepted output. A new request resets all state for a reused request-pool slot.
@@ -92,7 +92,7 @@ The Triton selector and state kernels live in `sglang/kernels/ops/sampling/texts
 
 ## Server configuration
 
-`--enable-watermark` allocates CUDA watermark state and accepts request configuration. All other settings come from one JSON object passed with `--watermark-config`, as a file path or inline JSON (a value starting with `{`); every field is optional and unknown fields are rejected.
+`--enable-watermark` allocates watermark state on the serving device and accepts request configuration. All other settings come from one JSON object passed with `--watermark-config`, as a file path or inline JSON (a value starting with `{`); every field is optional and unknown fields are rejected.
 
 | Field | Default | Behavior |
 | --- | --- | --- |

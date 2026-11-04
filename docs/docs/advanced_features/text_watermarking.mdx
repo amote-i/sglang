@@ -348,7 +348,7 @@ A detector written from scratch instead of reusing this package must implement t
 | PD disaggregation | Rejected | Startup validation fails closed because watermark state is not transferred between workers. |
 | Embedded Rust API server | Rejected | Startup validation fails closed. |
 | Ascend NPU | Verified | Runs the PyTorch reference selector; startup validation, key handling, truncation, and detection follow the same contract as CUDA. |
-| Other non-CUDA devices | Untested | Accepted on hosts without CUDA and routed to the PyTorch reference selector; `--device cuda` is required only on CUDA hosts. |
+| Other non-CUDA devices | Rejected | Startup validation fails closed; the device check accepts only `cuda` and Ascend `npu`. |
 
 In speculative decoding, verification clones the target logits before forcing, so target-model log-probability computation still sees the pre-watermark distribution. Each draft node gets its own context, rebuilt from its ancestors in the verify tree. Repeated-context admission is conservative across the whole tree: once a context hash appears in an earlier row, later rows with the same hash are not forced, even on sibling branches. This keeps duplicate entries out of the history, but reconvergent wide trees may carry less signal.
 

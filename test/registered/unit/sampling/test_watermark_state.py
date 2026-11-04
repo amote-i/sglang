@@ -389,7 +389,11 @@ def test_speculative_slow_path_forces_watermark_tokens():
 
     assert hashes.shape[0] == draft_token_num
     assert context_lengths.min().item() > 0
-    assert selected.all()
+    # Rows 1 and 2 share the context [11, 12, 13, 31], so the repeated-context
+    # rule leaves row 2 unforced — the same tree the fused-path test above
+    # asserts with [:, 2].logical_not().
+    assert selected.tolist() == [True, True, False, True]
+    assert torch.isfinite(logits).sum(dim=1).tolist() == [1, 1, 64, 1]
 
 
 @skip_on_npu

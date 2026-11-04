@@ -986,6 +986,35 @@ class WatermarkState:
         )
         return context_hashes, selected
 
+    def _force_speculative_reference(
+        self,
+        logits: torch.Tensor,
+        req_pool_indices: torch.Tensor,
+        draft_tokens: torch.Tensor,
+        custom_mask: torch.Tensor,
+        positions: torch.Tensor,
+        sampling_info: SamplingBatchInfo,
+        draft_token_num: int,
+        full_mask: bool,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        contexts, context_lengths = self.speculative_contexts(
+            req_pool_indices=req_pool_indices,
+            draft_tokens=draft_tokens,
+            custom_mask=custom_mask,
+            positions=positions,
+            draft_token_num=draft_token_num,
+            full_mask=full_mask,
+            context_windows=self.context_windows(sampling_info),
+        )
+        return self.force_speculative(
+            logits=logits,
+            req_pool_indices=req_pool_indices,
+            contexts=contexts,
+            context_lengths=context_lengths,
+            sampling_info=sampling_info,
+            draft_token_num=draft_token_num,
+        )
+
     def force_speculative_from_tree(
         self,
         logits: torch.Tensor,
@@ -997,6 +1026,21 @@ class WatermarkState:
         draft_token_num: int,
         full_mask: bool,
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        # Non-CUDA tensors (e.g. on Ascend NPU, where transfer_to_npu aliases
+        # Tensor.is_cuda) must take the torch reference path; the Triton
+        # selector module below may not even import on those hosts.
+        if not _is_cuda_tensor(logits):
+            return self._force_speculative_reference(
+                logits=logits,
+                req_pool_indices=req_pool_indices,
+                draft_tokens=draft_tokens,
+                custom_mask=custom_mask,
+                positions=positions,
+                sampling_info=sampling_info,
+                draft_token_num=draft_token_num,
+                full_mask=full_mask,
+            )
+
         from sglang.kernels.ops.sampling.textseal_selector import (
             can_use_finite_topk_watermark,
             force_speculative_watermark_tokens_triton,
@@ -1004,22 +1048,15 @@ class WatermarkState:
         )
 
         if not can_use_finite_topk_watermark(sampling_info.max_top_k, logits.shape[1]):
-            contexts, context_lengths = self.speculative_contexts(
+            return self._force_speculative_reference(
+                logits=logits,
                 req_pool_indices=req_pool_indices,
                 draft_tokens=draft_tokens,
                 custom_mask=custom_mask,
                 positions=positions,
-                draft_token_num=draft_token_num,
-                full_mask=full_mask,
-                context_windows=self.context_windows(sampling_info),
-            )
-            return self.force_speculative(
-                logits=logits,
-                req_pool_indices=req_pool_indices,
-                contexts=contexts,
-                context_lengths=context_lengths,
                 sampling_info=sampling_info,
                 draft_token_num=draft_token_num,
+                full_mask=full_mask,
             )
 
         num_rows = req_pool_indices.shape[0] * draft_token_num

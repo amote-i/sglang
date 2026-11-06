@@ -109,6 +109,29 @@ Ordered starting points for each deployment shape, distilled from the published 
 
 <a id="feature-descriptions" title="Referenced by external docs. Verify before removing."></a>
 
+### Feature descriptions
+
+Each Ascend-relevant feature, its switch, and its default. The **Reference Value** columns below give tuned starting points; this table tells you which knob a feature name refers to.
+
+| Feature | Switch | Default | Notes |
+| --- | --- | --- | --- |
+| Tensor Parallelism | `--tp-size` | `1` | Shards weights across devices; every extra rank adds all-reduce. |
+| Attention Data Parallelism | `--attn-dp-size` (alias `--attention-data-parallel-size`) | `1` | Runs attention data-parallel inside the TP group; must divide TP; cannot combine with `--dp-size` greater than 1. The best-practice spelling `--enable-dp-attention --dp-size N` is deprecated. |
+| Expert Parallelism | `--ep-size` (aliases `--ep`, `--expert-parallel-size`) | `1` | With `deepep`, EP is forced to TP; `ascend_fuseep` can use a different value. |
+| Context Parallelism (prefill) | `--enable-prefill-cp` + `--attn-cp-size` + `--cp-strategy` | off; `1`; unset | All three are required for prefill CP; `--attn-cp-size` must divide TP. V3.2/DSA uses `interleave`, MiMo V2 uses `zigzag`. |
+| PD Disaggregation | `--disaggregation-mode` + `--disaggregation-transfer-backend ascend` + `ASCEND_MF_STORE_URL` | off; `mooncake`; unset | The store runs on the prefill primary node; launch a router with `--pd-disaggregation` to expose one endpoint. |
+| Quantization | `--quantization modelslim` | auto-detected | ModelSlim W4A4/W8A8/W4A8 and MXFP8/MXFP4 checkpoints. Never disable the NZ weight layout for FP4/MXFP4. |
+| Chunked Prefill | `--chunked-prefill-size` | 4K/8K by HBM tier | `-1` disables chunking; with attention DP the per-rank chunk is divided by `--attn-dp-size`. |
+| NPU Graph | `--cuda-graph-backend-decode`, `--cuda-graph-bs-decode`, `--cuda-graph-max-bs-decode` | decode `full`; prefill `disabled` | Decode-only on NPU. `--cuda-graph-max-bs-decode` is per DP rank and must be at least, and a multiple of, `attn_tp_size`. |
+| Speculative Decoding | `--speculative-algorithm` + steps/topk/draft-token flags | off | NEXTN, EAGLE, and EAGLE3 are the validated Ascend paths. Keep `--speculative-eagle-topk 1`; with topk 1, draft tokens are forced to `num-steps + 1`. |
+| Prefix cache (radix) | `--disable-radix-cache` | enabled | PD decode forces it off unless `--disaggregation-decode-enable-radix-cache` is set. |
+| Overlap schedule | `--disable-overlap-schedule` | enabled | Prepared on CPU while the current batch runs; auto-disabled for pipeline parallelism. |
+| DP LM Head | `--enable-dp-lm-head` | off | Requires attention DP (`--attn-dp-size` greater than 1). |
+| MLAPO | `SGLANG_NPU_USE_MLAPO=1` | off | Fuses MLA pre-processing (projections, RMSNorms, RoPE, KV write). Can silently fall back to the unfused path on unsupported weight layouts. |
+| Multistream MoE | `SGLANG_NPU_USE_MULTI_STREAM=1` | off | Runs shared and routed experts on separate streams. |
+| EPLB | `--enable-eplb` | off | Requires the `deepep` backend, `TP = EP = world size`, and `--ep-num-redundant-experts` for replication. |
+| NZ weight layout | `SGLANG_NPU_DISABLE_ACL_FORMAT_WEIGHT=1` to disable | enabled | Keep the default; never disable it for FP4/MXFP4. KV-cache NZ is controlled separately by `SGLANG_USE_FIA_NZ`. |
+
 ### System-Level Optimizations
 
 These OS-level settings reduce scheduling jitter on the host CPUs:
@@ -541,357 +564,28 @@ These switches optimize DeepSeek-style MLA attention and MoE layers; they are us
 
 ## Feature Compatibility
 
-The table shows feature-by-feature compatibility of SGLang capabilities on Ascend NPU. Features that have performance impact on Ascend are included. Each cell at the intersection of two features indicates whether they can be used together.
+Use this section to check a combination before you launch it. It lists only combinations with a known, actionable constraint; absence from the table means no known conflict, not a guarantee. For per-flag support status, see the [Feature Support Matrix](/docs/hardware-platforms/ascend-npus/reference/support_features).
 
-The symbols used are defined as follows:
+**Symbols:** 🟢 supported and exercised together; 🟠 supported only with the constraint in the row; ❌ do not combine.
 
-- 🟢 = Full compatibility
-- 🟠 = Partial compatibility
-- ❌ = No compatibility
-- ❔ = Unknown or TBD
-
-Notes:
-
-- **Data Parallelism** here refers to attention data parallelism (`--attn-dp-size`), the form used in Ascend deployments. Model replication (`--dp-size` > 1) is single-node only (enforced in code), validated on A2/A3, and cannot be combined with attention DP.
-- EPLB requires the `deepep` A2A backend — `ascend_fuseep` is not supported.
-- Speculative decoding with a quantized target model: keep the draft model unquantized (`--speculative-draft-model-quantization unquant`); several model families on Ascend enforce this automatically.
-- A 🟠 cell means the combination works with constraints — e.g., PD decode disables radix caching by default, and EPLB stages NZ-format weights through ND during migration — or is simply not exercised by the reference best practices; verify on your workload.
-
-For per-flag support status, see the [Feature Support Matrix](/docs/hardware-platforms/ascend-npus/reference/support_features).
-
-<Accordion title="Show the full 16×16 compatibility matrix">
-
-<table>
-  <thead>
-    <tr>
-      <th>Feature</th>
-      <th>Tensor Parallelism</th>
-      <th>Data Parallelism</th>
-      <th>Expert Parallelism</th>
-      <th>Context Parallelism</th>
-      <th>PD Disaggregation</th>
-      <th>Quantization</th>
-      <th>Chunked Prefill</th>
-      <th>NPU Graph</th>
-      <th>Speculative Decoding</th>
-      <th>PrefixCache</th>
-      <th>Overlap Schedule</th>
-      <th>DP LM Head</th>
-      <th>MLAPO</th>
-      <th>Multistream MoE</th>
-      <th>EPLB</th>
-      <th>NZ Weight Format</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>Tensor Parallelism</td>
-      <td></td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-    </tr>
-    <tr>
-      <td>Data Parallelism</td>
-      <td>🟢</td>
-      <td></td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-    </tr>
-    <tr>
-      <td>Expert Parallelism</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td></td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟢</td>
-    </tr>
-    <tr>
-      <td>Context Parallelism</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td></td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>❔</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-    </tr>
-    <tr>
-      <td>PD Disaggregation</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td></td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟢</td>
-    </tr>
-    <tr>
-      <td>Quantization</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td></td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-    </tr>
-    <tr>
-      <td>Chunked Prefill</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td></td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟢</td>
-    </tr>
-    <tr>
-      <td>NPU Graph</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td></td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-    </tr>
-    <tr>
-      <td>Speculative Decoding</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td></td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-    </tr>
-    <tr>
-      <td>PrefixCache</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td></td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-    </tr>
-    <tr>
-      <td>Overlap Schedule</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td></td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-    </tr>
-    <tr>
-      <td>DP LM Head</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>❔</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td></td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟢</td>
-    </tr>
-    <tr>
-      <td>MLAPO</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td></td>
-      <td>🟢</td>
-      <td>❔</td>
-      <td>🟢</td>
-    </tr>
-    <tr>
-      <td>Multistream MoE</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td></td>
-      <td>❔</td>
-      <td>🟢</td>
-    </tr>
-    <tr>
-      <td>EPLB</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>❔</td>
-      <td>❔</td>
-      <td></td>
-      <td>🟠</td>
-    </tr>
-    <tr>
-      <td>NZ Weight Format</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟢</td>
-      <td>🟠</td>
-      <td></td>
-    </tr>
-  </tbody>
-</table>
-
-</Accordion>
+| Feature A | Feature B | Status | Constraint |
+| --- | --- | --- | --- |
+| NPU Graph | TP, attention DP, EP, PD, quantization, speculative decoding, DP LM Head | 🟢 | Used together in the published DeepSeek V3.2 decode configuration. |
+| Chunked Prefill | TP, attention DP, EP, context parallelism, quantization | 🟢 | Default-on for mixed serving; per-rank chunk is divided by attention DP. |
+| PD Disaggregation | DP LM Head | 🟢 | Used together on DeepSeek V3.2 decode. |
+| Quantization | DP LM Head | 🟢 | Used together on DeepSeek V3.2 decode (`modelslim`). |
+| Attention DP | `--dp-size` greater than 1 | ❌ | Model replicas cannot be combined with attention DP; `--dp-size` greater than 1 is single-node only. |
+| PD decode | Prefix cache | 🟠 | Decode forces radix caching off; enable it only with the experimental `--disaggregation-decode-enable-radix-cache`. |
+| Speculative decoding | Quantized target | 🟠 | The draft inherits the target quantization by default; pass `--speculative-draft-model-quantization unquant`. |
+| CP (V3.2/DSA) | Attention DP greater than 1 | ❌ | The interleave DSA path requires `DP = 1`; keep attention DP off when CP is on. |
+| EPLB | `ascend_fuseep` | ❌ | EPLB requires `deepep`; there is no startup guard today, so a wrong backend can fail silently. |
+| EPLB | Topology | ❌ unless `TP = EP = world size` | Migration asserts `tp_size == moe_ep_size == world_size`. |
+| CUDA graph | `--cuda-graph-max-bs-decode` smaller than `attn_tp_size` | ❌ | The capture bucket list becomes empty and startup aborts; use a multiple of `attn_tp_size`. |
+| `TASK_QUEUE_ENABLE=2` | NPU Graph capture | ❌ | torch_npu rejects level 2 during capture; decoding roles must use `0` or `1`. |
+| `HCCL_OP_EXPANSION_MODE=AIV` | A2 + DeepEP | ❌ | Keep it unset on A2 with DeepEP; vendor docs report unknown-operator errors. |
+| LoRA | `SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1` | ❌ | The speculative plan stream is incompatible with LoRA under EAGLE/NEXTN/EAGLE3. |
+| PD prefill | `--load-balance-method round_robin` | 🟠 | Keep `auto`: prefill resolves to `follow_bootstrap_room`, decode to `round_robin`; an explicit round-robin on prefill loses DP-rank affinity. |
+| `--disable-cuda-graph` | Decode graph | 🟠 | Deprecated and global: it disables both prefill and decode graphs. Do not use it on a decode or mixed node. |
 
 ## See Also
 

@@ -464,10 +464,10 @@ cat /proc/sys/kernel/numa_balancing # shows 0
 ### Prevent swapping out system memory
 
 ```bash Command
-sudo sysctl -w vm.swappiness=10
+sudo sysctl -w vm.swappiness=0
 
 # Check
-cat /proc/sys/vm/swappiness # shows 10
+cat /proc/sys/vm/swappiness # shows 0
 ```
 
 ## Running SGLang Service

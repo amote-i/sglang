@@ -309,7 +309,7 @@ SGLang shards a model along several axes that combine as `tp_size = attn_tp_size
     </tr>
     <tr>
       <td>`--enable-dp-lm-head`</td>
-      <td>Shards the LM head vocabulary across the attention-TP group inside each DP rank, avoiding an all-gather of logits across DP ranks. Requires attention DP (`--attn-dp-size` > 1).</td>
+      <td>Shards the LM head vocabulary across the attention-TP group inside each DP rank, avoiding an all-gather of logits across DP ranks. Requires attention DP (`--attn-dp-size` greater than 1).</td>
       <td>Enabled</td>
     </tr>
     <tr>

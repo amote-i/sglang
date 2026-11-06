@@ -49,10 +49,11 @@ Ordered starting points for each deployment shape, distilled from the published 
 | Step | Setting | Why |
 | ---- | ------- | --- |
 | 1 | `--tp-size` = NPUs used; for MoE add `--moe-a2a-backend deepep` (EP size follows TP) | Topology bounds everything else — see [Parallelism](#parallelism) |
-| 2 | Size `--mem-fraction-static` last: start from a same-class best practice, lower it on OOM, raise it when KV cache limits concurrency | See [Memory & Device Configuration](#memory-and-device-configuration) |
+| 2 | After settling topology, graph, and speculation, size `--mem-fraction-static`: start from a same-class best practice, lower it on OOM, raise it when KV cache limits concurrency | Activation and graph buffers are inputs to the memory budget; see [Memory & Device Configuration](#memory-and-device-configuration) |
 | 3 | Keep chunked prefill enabled (NPU defaults pick 4K/8K by device memory) | Interleaves prefill with decode in mixed workloads |
-| 4 | Leave NPU Graph on; set `--cuda-graph-max-bs-decode` near your typical batch size | Removes kernel-launch overhead |
+| 4 | Leave NPU Graph on; set `--cuda-graph-max-bs-decode` near your typical per-rank batch size, as a multiple of `attn_tp_size` | Removes kernel-launch overhead; buckets below `attn_tp_size` fail capture |
 | 5 | Optional: speculative decoding — `NEXTN` for models with MTP, `EAGLE3` otherwise | Cuts per-token latency |
+| 6 | Leave `TASK_QUEUE_ENABLE` at `1` on a mixed node | Mixed nodes capture decode graphs; level `2` breaks capture |
 
 ### PD Disaggregation — Prefill
 
@@ -63,24 +64,32 @@ Ordered starting points for each deployment shape, distilled from the published 
 | 3 | `--max-prefill-tokens` ≈ target sequence length (V3.2: `68000`) | Bounds one prefill batch |
 | 4 | `--max-running-requests 1` | Dedicates the whole node to each request |
 | 5 | `--disable-radix-cache` when inputs share no prefixes | Saves memory; keep caching on for shared-prefix traffic |
-| 6 | `--cuda-graph-backend-prefill=disabled` | Graphs add little for large, variable prefill batches |
-| 7 | For long contexts: `--enable-prefill-cp --attn-cp-size <tp> --cp-strategy interleave` | Distributes KV cache across devices (`--attn-cp-size` must divide TP; best practices use CP = TP) |
+| 6 | No prefill graph flag is needed: NPU prefill graphs are off by default. Do not use `--disable-cuda-graph` on a mixed node | Graphs add little for large, variable prefill batches; the deprecated flag also disables decode capture |
+| 7 | For long contexts: `--enable-prefill-cp --attn-cp-size <tp> --cp-strategy interleave` | Distributes KV cache across devices. `--cp-strategy` is required; V3.2/DSA uses `interleave`, MiMo V2 uses `zigzag`; `--attn-cp-size` must divide TP |
 | 8 | `--moe-a2a-backend deepep --deepep-mode normal`, `DEEPEP_HCCL_BUFFSIZE=1200` | Bulk token dispatch |
 | 9 | `TASK_QUEUE_ENABLE=2` | Aggressive submission pipelining — safe here because prefill captures no graphs |
-| 10 | Multi-node prefill: `DEEP_NORMAL_MODE_USE_INT8_QUANT=1` (deprecated — see the [reference](#moe-dispatch-and-expert-load-balancing)) | Cuts dispatch communication volume |
+| 10 | Multi-node prefill: `DEEP_NORMAL_MODE_USE_INT8_QUANT=1` (deprecated — see the [reference](#moe-dispatch-and-expert-load-balancing)); prefer `--deepep-dispatcher-output-dtype int8` on newer versions | Cuts dispatch communication volume |
+| 11 | `--disaggregation-bootstrap-port 8998` | The router and decode nodes use this port to reach the prefill bootstrap service |
 
 ### PD Disaggregation — Decode
 
 | Step | Setting | Why |
 | ---- | ------- | --- |
 | 1 | `--disaggregation-mode decode --disaggregation-transfer-backend ascend`, `ASCEND_MF_STORE_URL=tcp://<prefill primary IP>:<port>` | Decode nodes discover the KV transfer service through the store; the default transfer backend does not work on NPU |
-| 2 | `--attn-dp-size 8` + `--enable-dp-lm-head` (+ `--ep-size 32` for a 256-expert MoE) | Attention DP removes KV duplication; must divide TP |
+| 2 | `--attn-dp-size 8` + `--enable-dp-lm-head` | Attention DP removes KV duplication; must divide TP. With `deepep`, EP is forced to TP (`32`), so the BP still passes `--ep 32` |
 | 3 | `--moe-a2a-backend deepep --deepep-mode low_latency`, `DEEPEP_HCCL_BUFFSIZE=400` | Small-batch dispatch path |
-| 4 | `SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=8` | Cover the per-rank draft tokens of one iteration (see the sizing note in the [reference](#moe-dispatch-and-expert-load-balancing)) |
+| 4 | `--max-running-requests 32`, then `SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=8` | `8` = (32 requests / DP 8) × 4 draft tokens. Size it to the real per-iteration maximum; see the sizing note in the [reference](#moe-dispatch-and-expert-load-balancing) |
 | 5 | `TASK_QUEUE_ENABLE=0` | Decode captures NPU graphs — level 2 breaks capture |
 | 6 | `--cuda-graph-max-bs-decode 4` | Near the typical batch size; balances coverage vs capture cost |
 | 7 | `--speculative-algorithm NEXTN --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4`, `SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1` | Cuts per-token latency |
-| 8 | `SGLANG_SCHEDULER_SKIP_ALL_GATHER=1` with balanced DP load (e.g., `round_robin`) | Removes scheduler sync latency |
+| 8 | `SGLANG_SCHEDULER_SKIP_ALL_GATHER=1` with balanced DP load (leave `--load-balance-method auto`; decode resolves to `round_robin`) | Removes scheduler sync latency; only safe when DP ranks see the same forward mode and token counts |
+
+### PD Disaggregation — Router
+
+| Step | Setting | Why |
+| ---- | ------- | --- |
+| 1 | Use the same bootstrap port (`8998`) that the prefill group sets | The router passes it to decode nodes when opening the prefill connection |
+| 2 | `python -m sglang_router.launch_router --pd-disaggregation --policy cache_aware --prefill http://<prefill-ip>:8000 8998 --decode http://<decode-ip>:8001 --host 127.0.0.1 --port 6688 --mini-lb` | Exposes one OpenAI-compatible endpoint; without it the two server groups are not reachable as one service |
 
 ### Multi-Node
 
@@ -89,7 +98,7 @@ Ordered starting points for each deployment shape, distilled from the published 
 | 1 | [Required] `HCCL_SOCKET_IFNAME` / `GLOO_SOCKET_IFNAME` = an interface reachable from every node | An unreachable interface makes HCCL/Gloo initialization hang or fail |
 | 2 | `DEEPEP_HCCL_BUFFSIZE` per role (prefill `1200`, decode `400`) | Larger buffers for bulk inter-node transfers |
 | 3 | `DEEP_NORMAL_MODE_USE_INT8_QUANT=1` on prefill (deprecated) | Less dispatch traffic |
-| 4 | DeepSeek R1 prefill: `SGLANG_USE_AG_AFTER_QLORA=1` | Gathers fewer bytes after the low-rank Q projection |
+| 4 | DeepSeek R1 prefill: `SGLANG_USE_AG_AFTER_QLORA=1` together with `--enable-attn-tp-input-scattered` | Gathers fewer bytes after the low-rank Q projection; without the scattered-input flag the env var is a no-op |
 | 5 | Launch flags (`--nnodes`, `--node-rank`, `--dist-init-addr`) and remaining env vars | Copy the complete set from the best-practice scripts for your model |
 
 ## Troubleshooting Quick Fixes
@@ -250,27 +259,37 @@ SGLang shards a model along several axes that combine as `tp_size = attn_tp_size
     </tr>
     <tr>
       <td>`--dp-size`</td>
-      <td>Replicates the model across device groups to serve more requests in parallel. Cannot be combined with `--attn-dp-size` greater than `1`.</td>
+      <td>Replicates the model across device groups to serve more requests in parallel. Cannot be combined with attention DP (`--attn-dp-size` greater than `1`); model replication is single-node only, enforced at startup.</td>
       <td>`1`</td>
     </tr>
     <tr>
       <td>`--attn-dp-size` / `--attention-data-parallel-size`</td>
-      <td>Runs attention data-parallel inside the TP group: each DP rank serves its own requests with the full attention weights and stores KV only for them, while FFN/MoE layers stay TP/EP-sharded. A key decode-throughput lever for MoE models where attention is not the bottleneck; must divide the TP size.</td>
-      <td>Decode: `8` (the BP spells it `--enable-dp-attention --dp-size 8`)</td>
+      <td>Runs attention data-parallel inside the TP group: each DP group serves its own requests with its own KV cache and its own copy of the attention weights (still TP-sharded over the remaining `tp/attn_dp` ranks), while FFN/MoE layers stay TP/EP-sharded. Must divide the TP size; a key decode-throughput lever for MoE models. The BP spelling `--enable-dp-attention --dp-size 8` is deprecated — prefer `--attn-dp-size 8`.</td>
+      <td>Decode: `8`</td>
     </tr>
     <tr>
       <td>`--attn-cp-size`</td>
-      <td>Splits a single long sequence across devices, distributing its KV cache and attention compute. Must divide `--tp-size` evenly; best practices typically use `cp = tp` for long-context prefill.</td>
+      <td>Splits a single long sequence across devices for the prefill phase; it only shards context when `--enable-prefill-cp` is also set. Must divide `--tp-size` evenly (and `tp_size % (attn_dp_size × attn_cp_size) == 0` when both are used). Published configs range from `cp = tp` (V3.2, GLM-5.1) to `cp = 2, tp = 16` (Qwen3-235B).</td>
       <td>Prefill: `32`</td>
     </tr>
     <tr>
+      <td>`--enable-prefill-cp`</td>
+      <td>Enables context parallelism for the prefill phase. Required together with `--attn-cp-size` and `--cp-strategy`; without it, `--attn-cp-size` alone does not shard the prefill context. Prefill only — decode CP is a separate `--dcp-size` feature.</td>
+      <td>Set on long-context prefill</td>
+    </tr>
+    <tr>
+      <td>`--cp-strategy`</td>
+      <td>Sharding strategy for prefill CP: `zigzag` (each rank gets early and late blocks) or `interleave` (token indices modulo CP size). Required when `--enable-prefill-cp` is set. Model rules: DeepSeek V3.2/DSA → `interleave`; MiMo V2 → `zigzag`; CP-TP sharing models (GLM-5.3/Qwen4Exp) → `zigzag` and `cp = tp`.</td>
+      <td>V3.2: `interleave`</td>
+    </tr>
+    <tr>
       <td>`--ep-size` / `--ep` / `--expert-parallel-size`</td>
-      <td>Distributes MoE experts across cards and routes tokens via all-to-all dispatch. Default `1`; set it explicitly for MoE models — DeepSeek V3.2 with 256 routed experts uses `32`, scale down proportionally for fewer experts.</td>
+      <td>Distributes MoE experts across cards and routes tokens via all-to-all dispatch. Default `1`. With `deepep`, the final EP size is forced to TP (`ep_size` is adjusted automatically); only non-spanning backends such as `ascend_fuseep` can use a different value. DeepSeek V3.2 with 256 routed experts uses `32` because TP is `32`.</td>
       <td>`32`</td>
     </tr>
     <tr>
       <td>`--moe-dense-tp-size`</td>
-      <td>TP size for the dense FFN layers of MoE models (`first_k_dense_replace`); only `1` or the full TP size is allowed. Set to `1` with DP attention to skip a redundant all-reduce across the DP group; otherwise match the TP size.</td>
+      <td>TP size for the dense FFN layers of MoE models (`first_k_dense_replace`). Allowed values: unset (default), `1`, or the full TP size. Leave it unset for normal TP-sharded dense FFN; set `1` with attention DP to replicate the dense FFN per DP group and drop its all-reduce. Do not pass the TP size just to “match TP” — that turns on an extra attention-input gather.</td>
       <td>`1`</td>
     </tr>
     <tr>
@@ -280,12 +299,12 @@ SGLang shards a model along several axes that combine as `tp_size = attn_tp_size
     </tr>
     <tr>
       <td>`--load-balance-method`</td>
-      <td>Routes requests across DP ranks: `auto` (default), `round_robin`, `total_tokens`, `total_requests`, or `follow_bootstrap_room`. `round_robin` gives even distribution; switch to `total_tokens` when request lengths vary widely.</td>
-      <td>`round_robin` (DeepSeek R1, GLM configs)</td>
+      <td>Routes requests across DP ranks: `auto` (default), `round_robin`, `total_tokens`, `total_requests`, or `follow_bootstrap_room`. `auto` resolves per role: `follow_bootstrap_room` on PD prefill, `round_robin` on decode and non-PD. Leave it at `auto` unless you have a reason; an explicit `round_robin` on PD prefill loses bootstrap-room affinity. Has no effect when `dp_size × attn_dp_size == 1`.</td>
+      <td>`auto`</td>
     </tr>
     <tr>
       <td>`SGLANG_SCHEDULER_SKIP_ALL_GATHER=1`</td>
-      <td>Skips the scheduler's cross-DP-rank metadata all-gather, reducing decode scheduling latency. Only safe when load is balanced across DP ranks (e.g., with `round_robin`); disable if load is uneven.</td>
+      <td>Skips the scheduler's cross-DP-rank metadata all-gather on every step (prefill, mixed, and decode), not only decode. Safe only when every DP rank computes the same forward mode and rank-invariant token counts (balanced/round-robin load); uneven load can desync MoE dispatch and graph buckets. There is no code guard that rejects it.</td>
       <td>`1`</td>
     </tr>
   </tbody>
@@ -496,8 +515,13 @@ PD disaggregation runs prefill and decode on separate device groups so each phas
     </tr>
     <tr>
       <td>`ASCEND_MF_STORE_URL`</td>
-      <td><strong>[Required for PD disaggregation]</strong> MemFabric rendezvous store address: the prefill primary node's IP plus any free port. Decode nodes use it to discover and connect to the KV cache transfer service.</td>
+      <td><strong>[Required for PD disaggregation]</strong> MemFabric rendezvous store address: the prefill primary node's IP plus any free port. Set it identically on prefill and decode; the store is created on the prefill primary node (`node_rank 0`), and decode nodes use it to connect to the KV transfer service.</td>
       <td>Prefill IP with port</td>
+    </tr>
+    <tr>
+      <td>`--disaggregation-bootstrap-port`</td>
+      <td>Port of the prefill bootstrap service used by decode nodes and the router. Set it on the prefill group; the router's `--prefill` address carries the same port.</td>
+      <td>`8998`</td>
     </tr>
   </tbody>
 </table>

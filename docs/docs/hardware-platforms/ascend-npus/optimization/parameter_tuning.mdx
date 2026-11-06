@@ -101,7 +101,7 @@ Ordered starting points for each deployment shape, distilled from the published 
 
 ### Single-Node Mixed Serving
 
-Both prefill and decode run on the same node, so each setting below has to hold for both phases. Apply them in this order:
+Both prefill and decode run on the same node, so each setting below must hold for both phases. Apply them in this order:
 
 <Steps>
   <Step title="Set the topology">
@@ -159,7 +159,7 @@ The prefill group runs prefill only, so it can take large un-chunked batches and
   </Step>
 
   <Step title="Bound one prefill batch">
-    Set `--max-prefill-tokens` to roughly the target sequence length; the V3.2 reference uses `68000`.
+    Set `--max-prefill-tokens` to approximately the target sequence length; the V3.2 reference uses `68000`.
 
     **Why:** it caps a single prefill batch.
   </Step>
@@ -167,7 +167,7 @@ The prefill group runs prefill only, so it can take large un-chunked batches and
   <Step title="Dedicate the group to one request at a time">
     Set `--max-running-requests 1`.
 
-    **Why:** each request then owns the entire node, which maximizes per-request prefill throughput.
+    **Why:** each request then has the entire node, which maximizes per-request prefill throughput.
   </Step>
 
   <Step title="Skip prefix caching when inputs share no prefixes">
@@ -242,7 +242,7 @@ Decode is latency-bound, so the steps below keep per-rank batches small and capt
     **Why:** `8` = (32 requests / DP 8) × 4 draft tokens. Size it to the actual per-iteration maximum — see the [sizing note](#moe-dispatch-and-expert-load-balancing).
   </Step>
 
-  <Step title="Drop the task queue to level 0">
+  <Step title="Lower the task queue to level 0">
     Set `TASK_QUEUE_ENABLE=0`.
 
     **Why:** decode captures NPU graphs, and level `2` is incompatible with graph capture.
@@ -251,7 +251,7 @@ Decode is latency-bound, so the steps below keep per-rank batches small and capt
   <Step title="Capture a small decode bucket">
     Set `--cuda-graph-max-bs-decode 4`.
 
-    **Why:** it sits near the typical batch size, balancing coverage against capture cost.
+    **Why:** it is near the typical batch size, balancing coverage against capture cost.
   </Step>
 
   <Step title="Enable speculative decoding">
@@ -269,7 +269,7 @@ Decode is latency-bound, so the steps below keep per-rank batches small and capt
 
 ### PD Disaggregation — Router
 
-One router fronts both groups and exposes a single OpenAI-compatible endpoint. Start it after both groups are up:
+One router serves both groups and exposes a single OpenAI-compatible endpoint. Start it after both groups are up:
 
 <Steps>
   <Step title="Reuse the prefill bootstrap port">

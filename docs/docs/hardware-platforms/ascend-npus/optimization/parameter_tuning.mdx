@@ -4,15 +4,24 @@ metatags:
   description: "Learn how to optimize SGLang for Ascend NPU using the best practice configurations for mainstream LLM models"
 ---
 
-This guide helps you tune SGLang deployments on Ascend NPU. Use it in one of two ways:
+This guide helps you tune SGLang deployments on Ascend NPU. Use it in one of three ways:
 
 - **Tune for a goal**: start with [How to Tune](#how-to-tune), pick your goal in [Tuning by Goal](#tuning-by-goal), then follow a [scenario checklist](#scenario-checklists).
 - **Look up a parameter**: jump directly to the relevant section of the [Parameter Reference](#parameter-reference) from the table of contents.
+- **Check a combination**: see [Feature Compatibility](#feature-compatibility) before enabling several features together.
 
 Reference values are drawn from the published best-practice configurations — primarily the
 [DeepSeek-V3.2 PD disaggregation configuration](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/deepseek_v3_2#pd-disaggregation) —
 with the source model noted where it differs. For complete deployment scripts and benchmark results, see the
-[Ascend NPU Best Practice](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/deepseek_r1) page.
+[DeepSeek R1 best practice](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/deepseek_r1) page.
+
+<Info>
+  These are **deltas on a working deployment**. Environment setup and the validated software stack are covered in
+  [Installation](/docs/hardware-platforms/ascend-npus/getting-started/installation). The reference values were
+  validated on A2/A3 with the image named on each best-practice page (DeepSeek V3.2: `v0.5.18-cann9.0.0-a3`);
+  check the [Feature Support Matrix](/docs/hardware-platforms/ascend-npus/reference/support_features) for 950PR/DT
+  differences before copying a value to another device.
+</Info>
 
 <Note>
   Parameters fall into two categories:
@@ -23,9 +32,10 @@ with the source model noted where it differs. For complete deployment scripts an
 
 ## How to Tune
 
-1. **Define the goal and measure a baseline.** Pick the metric that matters — TTFT (time to first token), TPOT (time per output token), throughput (tokens/s), or memory headroom — and benchmark the current configuration before changing anything. The [best practices](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/deepseek_r1) ship ready-to-use `sglang.bench_serving` commands for each model.
-2. **Tune top-down.** Settle the deployment topology first (parallelism, PD disaggregation), then memory (`--mem-fraction-static`, quantization), then communication (interfaces, buffers), and only then kernel-level switches (NPU Graph, speculative decoding). Higher levels bound what lower levels can achieve — no amount of graph tuning compensates for a wrong TP/EP split.
+1. **Define the goal and measure a baseline.** Pick the metric that matters — TTFT (time to first token), TPOT (time per output token), throughput (tokens/s), or memory headroom — and benchmark the current configuration before changing anything. [Performance Testing](/docs/hardware-platforms/ascend-npus/evaluation/performance_testing) shows the command and how to read Mean TTFT/Mean TPOT; the best-practice pages also ship per-model `python -m sglang.benchmark.serving` commands. Record the seed, input/output lengths, and concurrency with every run. For a kernel-level view, use [Profiling](/docs/hardware-platforms/ascend-npus/optimization/profiling).
+2. **Tune top-down.** Settle the deployment topology first (parallelism, PD disaggregation). Then choose the load-shape knobs that consume memory — `--chunked-prefill-size`, `--cuda-graph-max-bs-decode`, and speculative decoding — and only then size `--mem-fraction-static`, because activation and graph buffers are inputs to the memory budget. Communication settings (interfaces, buffers) and the remaining kernel switches come after. Higher levels bound what lower levels can achieve — no amount of graph tuning compensates for a wrong TP/EP split.
 3. **Change one knob at a time, re-measure, keep the winner.** Record every configuration you benchmark so results stay comparable.
+4. **Verify before keeping it.** After quantization or speculative decoding, run the [accuracy evaluation](/docs/hardware-platforms/ascend-npus/evaluation/accuracy_evaluation); after any change, re-run the same benchmark and compare the metrics. Keep the previous configuration so you can roll back.
 
 ## Tuning by Goal
 
@@ -34,10 +44,10 @@ Where to start for common tuning goals — follow the links for details:
 | Goal                                        | Primary Knobs                                                                                                     | Also Consider                                              | Main Trade-off                                        |
 | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------- |
 | Lower decode latency (TPOT)                 | [Speculative decoding](#speculative-decoding), [`--cuda-graph-max-bs-decode`](#decode-tuning), [`--attn-dp-size`](#parallelism) | `SGLANG_SCHEDULER_SKIP_ALL_GATHER=1`                       | Spec decoding adds draft compute and depends on acceptance rate |
-| Higher throughput                           | [`--attn-dp-size`](#parallelism), [`--max-running-requests`](#prefill-tuning), [`--tokenizer-worker-num`](#throughput-tuning) | [`--ep-size`](#parallelism)                                | Higher concurrency raises per-request latency         |
-| Lower time to first token (TTFT)            | [`--chunked-prefill-size`](#prefill-tuning), prefix caching (leave [`--disable-radix-cache`](#prefill-tuning) unset) | [`--attn-cp-size`](#parallelism) for long inputs           | Chunking adds a small prefill overhead; CP adds communication |
+| Higher throughput                           | [`--attn-dp-size`](#parallelism), [`--max-running-requests`](#prefill-tuning) (decode uses 32–1024), [`--tokenizer-worker-num`](#throughput-tuning) | [`--ep-size`](#parallelism), [`--mem-fraction-static`](#memory-and-device-configuration) | Higher concurrency raises per-request latency         |
+| Lower time to first token (TTFT)            | [`--chunked-prefill-size`](#prefill-tuning) on mixed workloads, prefix caching (leave [`--disable-radix-cache`](#prefill-tuning) unset) | [`--attn-cp-size`](#parallelism) for long inputs           | Chunking adds a small prefill overhead; CP adds communication |
 | Resolve OOM                                 | Lower [`--mem-fraction-static`](#memory-and-device-configuration), [quantization](#quantization)                     | `PYTORCH_NPU_ALLOC_CONF=expandable_segments:True`          | Less KV cache capacity, or a small accuracy loss      |
-| Serve long contexts                         | [`--attn-cp-size`](#parallelism), [`--max-prefill-tokens`](#prefill-tuning)                                       | `--chunked-prefill-size -1` on a dedicated prefill pool    | More inter-device communication                       |
+| Serve long contexts                         | Context parallelism ([`--enable-prefill-cp`](#parallelism) + [`--attn-cp-size`](#parallelism) + `--cp-strategy`), [`--max-prefill-tokens`](#prefill-tuning) | `--chunked-prefill-size -1` on a dedicated prefill pool    | More inter-device communication; `--cp-strategy` is model-specific |
 | Scale beyond one node                       | [PD disaggregation](#pd-disaggregation), [`HCCL_SOCKET_IFNAME`](#communication-configuration)                     | `DEEPEP_HCCL_BUFFSIZE`                                     | More operational complexity                           |
 
 ## Scenario Checklists
@@ -49,7 +59,7 @@ Ordered starting points for each deployment shape, distilled from the published 
 | Step | Setting | Why |
 | ---- | ------- | --- |
 | 1 | `--tp-size` = NPUs used; for MoE add `--moe-a2a-backend deepep` (EP size follows TP) | Topology bounds everything else — see [Parallelism](#parallelism) |
-| 2 | After settling topology, graph, and speculation, size `--mem-fraction-static`: start from a same-class best practice, lower it on OOM, raise it when KV cache limits concurrency | Activation and graph buffers are inputs to the memory budget; see [Memory & Device Configuration](#memory-and-device-configuration) |
+| 2 | After settling topology, graph, and speculation, size `--mem-fraction-static`: start from a same-class best practice, lower it on OOM, raise it when KV cache limits concurrency | Activation and graph buffers are inputs to the memory budget; see [Memory and Device Configuration](#memory-and-device-configuration) |
 | 3 | Keep chunked prefill enabled (NPU defaults pick 4K/8K by device memory) | Interleaves prefill with decode in mixed workloads |
 | 4 | Leave NPU Graph on; set `--cuda-graph-max-bs-decode` near your typical per-rank batch size, as a multiple of `attn_tp_size` | Removes kernel-launch overhead; buckets below `attn_tp_size` fail capture |
 | 5 | Optional: speculative decoding — `NEXTN` for models with MTP, `EAGLE3` otherwise | Cuts per-token latency |
@@ -76,7 +86,7 @@ Ordered starting points for each deployment shape, distilled from the published 
 | Step | Setting | Why |
 | ---- | ------- | --- |
 | 1 | `--disaggregation-mode decode --disaggregation-transfer-backend ascend`, `ASCEND_MF_STORE_URL=tcp://<prefill primary IP>:<port>` | Decode nodes discover the KV transfer service through the store; the default transfer backend does not work on NPU |
-| 2 | `--attn-dp-size 8` + `--enable-dp-lm-head` | Attention DP removes KV duplication; must divide TP. With `deepep`, EP is forced to TP (`32`), so the BP still passes `--ep 32` |
+| 2 | `--attn-dp-size 8` + `--enable-dp-lm-head` | Attention DP removes KV duplication; must divide TP. With `deepep`, EP is forced to TP (`32`), so the published config still passes `--ep 32` |
 | 3 | `--moe-a2a-backend deepep --deepep-mode low_latency`, `DEEPEP_HCCL_BUFFSIZE=400` | Small-batch dispatch path |
 | 4 | `--max-running-requests 32`, then `SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=8` | `8` = (32 requests / DP 8) × 4 draft tokens. Size it to the real per-iteration maximum; see the sizing note in the [reference](#moe-dispatch-and-expert-load-balancing) |
 | 5 | `TASK_QUEUE_ENABLE=0` | Decode captures NPU graphs — level 2 breaks capture |
@@ -119,6 +129,8 @@ Ordered starting points for each deployment shape, distilled from the published 
 
 ## Parameter Reference
 
+Each table below gives the **tuned reference value**, not the flag default. Role-specific values are written as `Prefill:`/`Decode:`; the `Default` column in the [Feature Support Matrix](/docs/hardware-platforms/ascend-npus/reference/support_features) has the raw default for every flag, and [Feature descriptions](#feature-descriptions) maps each Ascend feature to its switch.
+
 <a id="feature-descriptions" title="Referenced by external docs. Verify before removing."></a>
 
 ### Feature descriptions
@@ -146,7 +158,7 @@ Each Ascend-relevant feature, its switch, and its default. The **Reference Value
 
 ### System-Level Optimizations
 
-These OS-level settings reduce scheduling jitter on the host CPUs:
+These OS-level settings reduce scheduling jitter on the host CPUs. Run the host-level commands as root (or with `sudo`); export environment variables in the launch shell.
 
 <table>
   <thead>
@@ -157,24 +169,24 @@ These OS-level settings reduce scheduling jitter on the host CPUs:
   </thead>
   <tbody>
     <tr>
-      <td>`echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor`</td>
+      <td>`echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor`</td>
       <td>Locks all CPU cores at the maximum frequency to remove DVFS-induced latency jitter.</td>
     </tr>
     <tr>
-      <td>`sysctl -w vm.swappiness=0`</td>
-      <td>Minimizes kernel swapping, reducing page faults on host memory used by NPU buffers.</td>
+      <td>`sudo sysctl -w vm.swappiness=0`</td>
+      <td>Reduces the chance of kernel swapping, lowering page faults on host memory used by NPU buffers.</td>
     </tr>
     <tr>
-      <td>`sysctl -w kernel.numa_balancing=0`</td>
+      <td>`sudo sysctl -w kernel.numa_balancing=0`</td>
       <td>Stops the kernel from migrating pages between NUMA nodes while inference is running.</td>
     </tr>
     <tr>
-      <td>`sysctl -w kernel.sched_migration_cost_ns=50000`</td>
+      <td>`sudo sysctl -w kernel.sched_migration_cost_ns=50000`</td>
       <td>Discourages the scheduler from moving inference threads between CPU cores.</td>
     </tr>
     <tr>
-      <td>`SGLANG_SET_CPU_AFFINITY=1`</td>
-      <td>Binds worker processes to dedicated CPU cores, avoiding cross-core migration overhead.</td>
+      <td>`export SGLANG_SET_CPU_AFFINITY=1`</td>
+      <td>Binds each TP rank's scheduler process to dedicated CPU cores, avoiding cross-core migration overhead.</td>
     </tr>
   </tbody>
 </table>
@@ -267,7 +279,7 @@ SGLang shards a model along several axes that combine as `tp_size = attn_tp_size
     </tr>
     <tr>
       <td>`--attn-dp-size` / `--attention-data-parallel-size`</td>
-      <td>Runs attention data-parallel inside the TP group: each DP group serves its own requests with its own KV cache and its own copy of the attention weights (still TP-sharded over the remaining `tp/attn_dp` ranks), while FFN/MoE layers stay TP/EP-sharded. Must divide the TP size; a key decode-throughput lever for MoE models. The BP spelling `--enable-dp-attention --dp-size 8` is deprecated — prefer `--attn-dp-size 8`.</td>
+      <td>Runs attention data-parallel inside the TP group: each DP group serves its own requests with its own KV cache and its own copy of the attention weights (still TP-sharded over the remaining `tp/attn_dp` ranks), while FFN/MoE layers stay TP/EP-sharded. Must divide the TP size; a key decode-throughput lever for MoE models. The best-practice scripts still use `--enable-dp-attention --dp-size 8` (deprecated) — prefer `--attn-dp-size 8`.</td>
       <td>Decode: `8`</td>
     </tr>
     <tr>
@@ -613,8 +625,12 @@ Use this section to check a combination before you launch it. It lists only comb
 
 ## See Also
 
-- [Ascend NPU Best Practice](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/deepseek_r1) — Complete deployment configurations and benchmark results for all supported models
+- [Ascend NPU Best Practices](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/deepseek_v3_2) — Complete deployment scripts and benchmark results; start with the DeepSeek V3.2 reference
+- [Performance Testing](/docs/hardware-platforms/ascend-npus/evaluation/performance_testing) — Benchmark commands (bench_serving, Evalscope, AISBench) and how to read TTFT/TPOT
+- [Accuracy Evaluation](/docs/hardware-platforms/ascend-npus/evaluation/accuracy_evaluation) — Validate output quality after quantization or speculative decoding
+- [Profiling](/docs/hardware-platforms/ascend-npus/optimization/profiling) — Find kernel-level bottlenecks
 - [Ascend NPU Environment Variables](/docs/hardware-platforms/ascend-npus/reference/environment_variables) — Reference for all Ascend NPU-related environment variables
-- [Feature Support Matrix](/docs/hardware-platforms/ascend-npus/reference/support_features) — Feature compatibility details per backend and model
+- [Feature Support Matrix](/docs/hardware-platforms/ascend-npus/reference/support_features) — Per-flag defaults and support status
+- [Glossary](/docs/hardware-platforms/ascend-npus/reference/glossary) — Ascend parallelism and optimization terminology
 - [DeepSeek V3.2 Guide](/cookbook/autoregressive/DeepSeek/DeepSeek-V3_2) — Detailed usage guide for DeepSeek V3.2 deployment
 - [Expert Parallelism](/docs/advanced_features/expert_parallelism) — DeepEP configuration and tuning guide

@@ -294,7 +294,7 @@ SGLang shards a model along several axes that combine as `tp_size = attn_tp_size
     </tr>
     <tr>
       <td>`--cp-strategy`</td>
-      <td>Sharding strategy for prefill CP: `zigzag` (each rank gets early and late blocks) or `interleave` (token indices modulo CP size). Required when `--enable-prefill-cp` is set. Model rules: DeepSeek V3.2/DSA → `interleave`; MiMo V2 → `zigzag`; CP-TP sharing models (GLM-5.3/Qwen4Exp) → `zigzag` and `cp = tp`.</td>
+      <td>Sharding strategy for prefill CP: `zigzag` (each rank gets early and late blocks) or `interleave` (token indices modulo CP size). Required when `--enable-prefill-cp` is set. Model rules: DeepSeek V3.2/DSA → `interleave`; MiMo V2 → `zigzag`; CP-TP sharing models: GLM-5.3-Flash (`Glm5Next`) → `interleave`, Qwen4Exp → `zigzag`, and both require `cp = tp`.</td>
       <td>V3.2: `interleave`</td>
     </tr>
     <tr>

@@ -141,7 +141,12 @@ Both prefill and decode run on the same node, so each setting below must hold fo
   </Step>
 </Steps>
 
-### PD Disaggregation — Prefill
+### PD Disaggregation (by Role)
+
+Prefill and decode run on separate node groups, each configured for its own workload, and a router exposes both as one service. Pick the role you are configuring:
+
+<Tabs>
+  <Tab title="Prefill">
 
 The prefill group runs prefill only, so it can take large un-chunked batches and leave graph capture off. Apply these steps in order:
 
@@ -213,7 +218,9 @@ The prefill group runs prefill only, so it can take large un-chunked batches and
   </Step>
 </Steps>
 
-### PD Disaggregation — Decode
+  </Tab>
+
+  <Tab title="Decode">
 
 Decode is latency-bound, so the steps below keep per-rank batches small and capture graphs. Apply them in this order:
 
@@ -267,7 +274,9 @@ Decode is latency-bound, so the steps below keep per-rank batches small and capt
   </Step>
 </Steps>
 
-### PD Disaggregation — Router
+  </Tab>
+
+  <Tab title="Router">
 
 One router serves both groups and exposes a single OpenAI-compatible endpoint. Start it after both groups are up:
 
@@ -290,6 +299,10 @@ One router serves both groups and exposes a single OpenAI-compatible endpoint. S
     **Why:** it exposes one endpoint; without the router, the two groups are not reachable as a single service.
   </Step>
 </Steps>
+
+  </Tab>
+
+</Tabs>
 
 ### Multi-Node
 

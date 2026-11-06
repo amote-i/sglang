@@ -101,60 +101,231 @@ Ordered starting points for each deployment shape, distilled from the published 
 
 ### Single-Node Mixed Serving
 
-| Step | Setting | Why |
-| ---- | ------- | --- |
-| 1 | `--tp-size` = NPUs used; for MoE add `--moe-a2a-backend deepep` (EP size follows TP) | Topology constrains everything else — see [Parallelism](#parallelism) |
-| 2 | After the topology, graph, and speculative settings are fixed, size `--mem-fraction-static`: start from a same-class best practice, lower it if OOM errors occur, raise it when KV cache capacity limits concurrency | Activation and graph buffers are inputs to the memory budget; see [Memory and Device Configuration](#memory-and-device-configuration) |
-| 3 | Keep chunked prefill enabled (NPU defaults select 4K/8K according to device memory) | Interleaves prefill with decode in mixed workloads |
-| 4 | Leave NPU Graph on; set `--cuda-graph-max-bs-decode` near your typical per-rank batch size, as a multiple of `attn_tp_size` | Removes kernel-launch overhead; buckets below `attn_tp_size` cause capture to fail |
-| 5 | Optional: speculative decoding — `NEXTN` for models with MTP, `EAGLE3` otherwise | Reduces per-token latency |
-| 6 | Leave `TASK_QUEUE_ENABLE` at `1` on a mixed node | Mixed nodes capture decode graphs; level `2` is incompatible with graph capture |
+Both prefill and decode run on the same node, so each setting below has to hold for both phases. Apply them in this order:
+
+<Steps>
+  <Step title="Set the topology">
+    `--tp-size` = the number of NPUs used. For MoE models, add `--moe-a2a-backend deepep` — the EP size then follows TP.
+
+    **Why:** topology constrains everything else. See [Parallelism](#parallelism).
+  </Step>
+
+  <Step title="Size the memory fraction after everything else">
+    With the topology, graph, and speculative settings already fixed, size `--mem-fraction-static`. Start from a same-class best practice, lower it if OOM errors occur, and raise it when KV cache capacity limits concurrency.
+
+    **Why:** activation and graph buffers are inputs to the memory budget. See [Memory and Device Configuration](#memory-and-device-configuration).
+  </Step>
+
+  <Step title="Keep chunked prefill enabled">
+    Leave chunked prefill on; the NPU defaults select 4K or 8K according to device memory.
+
+    **Why:** chunking interleaves prefill with decode in mixed workloads.
+  </Step>
+
+  <Step title="Keep NPU Graph on and size the decode buckets">
+    Leave NPU Graph enabled, and set `--cuda-graph-max-bs-decode` near your typical per-rank batch size, as a multiple of `attn_tp_size`.
+
+    **Why:** graphs remove kernel-launch overhead, and buckets below `attn_tp_size` cause capture to fail.
+  </Step>
+
+  <Step title="Add speculative decoding (optional)">
+    Use `NEXTN` for models with an MTP head, and `EAGLE3` otherwise.
+
+    **Why:** it reduces per-token latency.
+  </Step>
+
+  <Step title="Leave the task queue at level 1">
+    Keep `TASK_QUEUE_ENABLE` at `1` on a mixed node.
+
+    **Why:** mixed nodes capture decode graphs, and level `2` is incompatible with graph capture.
+  </Step>
+</Steps>
 
 ### PD Disaggregation — Prefill
 
-| Step | Setting | Why |
-| ---- | ------- | --- |
-| 1 | `--disaggregation-mode prefill --disaggregation-transfer-backend ascend`, `ASCEND_MF_STORE_URL=tcp://<this node's IP>:<port>` | The MemFabric rendezvous store runs on the prefill primary node |
-| 2 | `--chunked-prefill-size -1` | Dedicated prefill: no interleaving with decode |
-| 3 | `--max-prefill-tokens` ≈ target sequence length (V3.2: `68000`) | Bounds one prefill batch |
-| 4 | `--max-running-requests 1` | Dedicates the entire node to each request |
-| 5 | `--disable-radix-cache` when inputs share no prefixes | Saves memory; keep caching on for shared-prefix traffic |
-| 6 | No prefill graph flag is needed: NPU prefill graphs are off by default. Do not use `--disable-cuda-graph` on a mixed node | Graphs add little for large, variable prefill batches; the deprecated flag also disables decode capture |
-| 7 | For long contexts: `--enable-prefill-cp --attn-cp-size <tp> --cp-strategy interleave` | Distributes KV cache across devices. `--cp-strategy` is required; V3.2/DSA uses `interleave`, MiMo V2 uses `zigzag`; `--attn-cp-size` must divide TP |
-| 8 | `--moe-a2a-backend deepep --deepep-mode normal`, `DEEPEP_HCCL_BUFFSIZE=1200` | Bulk token dispatch |
-| 9 | `TASK_QUEUE_ENABLE=2` | Aggressive submission pipelining — safe here because prefill captures no graphs |
-| 10 | Multi-node prefill: `DEEP_NORMAL_MODE_USE_INT8_QUANT=1` (deprecated — see the [reference](#moe-dispatch-and-expert-load-balancing)); prefer `--deepep-dispatcher-output-dtype int8` on newer versions | Reduces dispatch communication volume |
-| 11 | `--disaggregation-bootstrap-port 8998` | The router and decode nodes use this port to reach the prefill bootstrap service |
+The prefill group runs prefill only, so it can take large un-chunked batches and leave graph capture off. Apply these steps in order:
+
+<Steps>
+  <Step title="Join the group as prefill">
+    Pass `--disaggregation-mode prefill` and `--disaggregation-transfer-backend ascend`, then export `ASCEND_MF_STORE_URL=tcp://<this node's IP>:<port>`.
+
+    **Why:** the MemFabric rendezvous store runs on the prefill primary node.
+  </Step>
+
+  <Step title="Turn off chunked prefill">
+    Pass `--chunked-prefill-size -1`.
+
+    **Why:** the group does not interleave with decode.
+  </Step>
+
+  <Step title="Bound one prefill batch">
+    Set `--max-prefill-tokens` to roughly the target sequence length; the V3.2 reference uses `68000`.
+
+    **Why:** it caps a single prefill batch.
+  </Step>
+
+  <Step title="Dedicate the group to one request at a time">
+    Set `--max-running-requests 1`.
+
+    **Why:** each request then owns the entire node, which maximizes per-request prefill throughput.
+  </Step>
+
+  <Step title="Skip prefix caching when inputs share no prefixes">
+    Add `--disable-radix-cache`.
+
+    **Why:** it saves memory; keep caching on for shared-prefix traffic.
+  </Step>
+
+  <Step title="Pass no prefill graph flag">
+    NPU prefill graphs are off by default, so no flag is needed. Do not use `--disable-cuda-graph`: on a mixed node it also disables decode capture.
+
+    **Why:** graphs add little for large, variable prefill batches.
+  </Step>
+
+  <Step title="Add context parallelism for long contexts">
+    Pass `--enable-prefill-cp`, `--attn-cp-size <tp>`, and `--cp-strategy interleave`. The strategy flag is required — V3.2/DSA uses `interleave`, MiMo V2 uses `zigzag` — and `--attn-cp-size` must divide TP.
+
+    **Why:** it distributes the KV cache across devices.
+  </Step>
+
+  <Step title="Use DeepEP normal mode">
+    Set `--moe-a2a-backend deepep` and `--deepep-mode normal`, plus `DEEPEP_HCCL_BUFFSIZE=1200`.
+
+    **Why:** normal mode is the bulk dispatch path for large token counts.
+  </Step>
+
+  <Step title="Raise the task queue to level 2">
+    Set `TASK_QUEUE_ENABLE=2`.
+
+    **Why:** it pipelines task submission aggressively, and it is safe here because prefill captures no graphs.
+  </Step>
+
+  <Step title="Quantize dispatch">
+    On multi-node prefill, prefer `--deepep-dispatcher-output-dtype int8` on newer versions; `DEEP_NORMAL_MODE_USE_INT8_QUANT=1` is deprecated — see the [reference](#moe-dispatch-and-expert-load-balancing).
+
+    **Why:** it reduces dispatch communication volume.
+  </Step>
+
+  <Step title="Open the bootstrap port">
+    Set `--disaggregation-bootstrap-port 8998`.
+
+    **Why:** the router and decode nodes use this port to reach the prefill bootstrap service.
+  </Step>
+</Steps>
 
 ### PD Disaggregation — Decode
 
-| Step | Setting | Why |
-| ---- | ------- | --- |
-| 1 | `--disaggregation-mode decode --disaggregation-transfer-backend ascend`, `ASCEND_MF_STORE_URL=tcp://<prefill primary IP>:<port>` | Decode nodes discover the KV transfer service through the store; the default transfer backend does not work on NPU |
-| 2 | `--attn-dp-size 8` + `--enable-dp-lm-head` | Attention DP removes KV duplication; must divide TP. With `deepep`, EP is forced to TP (`32`), so the published config still passes `--ep 32` |
-| 3 | `--moe-a2a-backend deepep --deepep-mode low_latency`, `DEEPEP_HCCL_BUFFSIZE=400` | Small-batch dispatch path |
-| 4 | `--max-running-requests 32`, then `SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=8` | `8` = (32 requests / DP 8) × 4 draft tokens. Size it to the actual per-iteration maximum; see the sizing note in the [reference](#moe-dispatch-and-expert-load-balancing) |
-| 5 | `TASK_QUEUE_ENABLE=0` | Decode captures NPU graphs — level 2 is incompatible with graph capture |
-| 6 | `--cuda-graph-max-bs-decode 4` | Near the typical batch size; balances coverage vs capture cost |
-| 7 | `--speculative-algorithm NEXTN --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4`, `SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1` | Reduces per-token latency |
-| 8 | `SGLANG_SCHEDULER_SKIP_ALL_GATHER=1` with balanced DP load (leave `--load-balance-method auto`; decode resolves to `round_robin`) | Removes scheduler sync latency; only safe when DP ranks see the same forward mode and token counts |
+Decode is latency-bound, so the steps below keep per-rank batches small and capture graphs. Apply them in this order:
+
+<Steps>
+  <Step title="Join the group as decode">
+    Pass `--disaggregation-mode decode` and `--disaggregation-transfer-backend ascend`, then point `ASCEND_MF_STORE_URL` at the prefill primary node: `tcp://<prefill primary IP>:<port>`.
+
+    **Why:** decode nodes discover the KV transfer service through the store, and the default transfer backend does not work on NPU.
+  </Step>
+
+  <Step title="Enable attention DP and the DP LM head">
+    Pass `--attn-dp-size 8` and `--enable-dp-lm-head`. Attention DP must divide TP; with `deepep`, EP is forced to TP (`32`), so the published config still passes `--ep 32`.
+
+    **Why:** attention DP removes KV duplication across the TP group.
+  </Step>
+
+  <Step title="Switch DeepEP to low-latency mode">
+    Set `--moe-a2a-backend deepep` and `--deepep-mode low_latency`, plus `DEEPEP_HCCL_BUFFSIZE=400`.
+
+    **Why:** low-latency mode is the small-batch dispatch path.
+  </Step>
+
+  <Step title="Cap concurrency and size the dispatch buffer">
+    Set `--max-running-requests 32`, then `SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=8`.
+
+    **Why:** `8` = (32 requests / DP 8) × 4 draft tokens. Size it to the actual per-iteration maximum — see the [sizing note](#moe-dispatch-and-expert-load-balancing).
+  </Step>
+
+  <Step title="Drop the task queue to level 0">
+    Set `TASK_QUEUE_ENABLE=0`.
+
+    **Why:** decode captures NPU graphs, and level `2` is incompatible with graph capture.
+  </Step>
+
+  <Step title="Capture a small decode bucket">
+    Set `--cuda-graph-max-bs-decode 4`.
+
+    **Why:** it sits near the typical batch size, balancing coverage against capture cost.
+  </Step>
+
+  <Step title="Enable speculative decoding">
+    Pass `--speculative-algorithm NEXTN`, `--speculative-num-steps 3`, `--speculative-eagle-topk 1`, and `--speculative-num-draft-tokens 4`, then set `SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1`.
+
+    **Why:** it reduces per-token latency.
+  </Step>
+
+  <Step title="Skip the scheduler all-gather (balanced load only)">
+    With balanced DP load, set `SGLANG_SCHEDULER_SKIP_ALL_GATHER=1` and leave `--load-balance-method auto` — decode resolves to `round_robin`.
+
+    **Why:** it removes scheduler sync latency, but it is safe only when every DP rank sees the same forward mode and token counts.
+  </Step>
+</Steps>
 
 ### PD Disaggregation — Router
 
-| Step | Setting | Why |
-| ---- | ------- | --- |
-| 1 | Use the same bootstrap port (`8998`) that the prefill group sets | The router passes it to decode nodes when opening the prefill connection |
-| 2 | `python -m sglang_router.launch_router --pd-disaggregation --policy cache_aware --prefill http://<prefill-ip>:8000 8998 --decode http://<decode-ip>:8001 --host 127.0.0.1 --port 6688 --mini-lb` | Exposes one OpenAI-compatible endpoint; without it the two server groups are not reachable as one service |
+One router fronts both groups and exposes a single OpenAI-compatible endpoint. Start it after both groups are up:
+
+<Steps>
+  <Step title="Reuse the prefill bootstrap port">
+    Point the router at the same bootstrap port the prefill group sets (`8998`).
+
+    **Why:** the router passes it to decode nodes when opening the prefill connection.
+  </Step>
+
+  <Step title="Launch the router">
+    ```bash
+    python -m sglang_router.launch_router --pd-disaggregation \
+      --policy cache_aware \
+      --prefill http://<prefill-ip>:8000 8998 \
+      --decode http://<decode-ip>:8001 \
+      --host 127.0.0.1 --port 6688 --mini-lb
+    ```
+
+    **Why:** it exposes one endpoint; without the router, the two groups are not reachable as a single service.
+  </Step>
+</Steps>
 
 ### Multi-Node
 
-| Step | Setting | Why |
-| ---- | ------- | --- |
-| 1 | [Required] `HCCL_SOCKET_IFNAME` / `GLOO_SOCKET_IFNAME` = an interface reachable from every node | An unreachable interface makes HCCL/Gloo initialization hang or fail |
-| 2 | `DEEPEP_HCCL_BUFFSIZE` per role (prefill `1200`, decode `400`) | Larger buffers for bulk inter-node transfers |
-| 3 | `DEEP_NORMAL_MODE_USE_INT8_QUANT=1` on prefill (deprecated) | Less dispatch traffic |
-| 4 | DeepSeek R1 prefill: `SGLANG_USE_AG_AFTER_QLORA=1` together with `--enable-attn-tp-input-scattered` | Gathers fewer bytes after the low-rank Q projection; without the scattered-input flag the env var has no effect |
-| 5 | Launch flags (`--nnodes`, `--node-rank`, `--dist-init-addr`) and remaining env vars | Copy the complete set from the best-practice scripts for your model |
+These settings only matter once prefill or decode spans more than one node. Apply them in this order:
+
+<Steps>
+  <Step title="Pin the HCCL and Gloo interfaces">
+    **[Required]** Set `HCCL_SOCKET_IFNAME` / `GLOO_SOCKET_IFNAME` to an interface reachable from every node.
+
+    **Why:** an unreachable interface makes HCCL/Gloo initialization hang or fail.
+  </Step>
+
+  <Step title="Size the DeepEP HCCL buffers per role">
+    Set `DEEPEP_HCCL_BUFFSIZE` to `1200` on prefill and `400` on decode.
+
+    **Why:** larger buffers carry bulk inter-node transfers but cost HBM, and decode needs less.
+  </Step>
+
+  <Step title="Quantize dispatch on prefill">
+    Set `DEEP_NORMAL_MODE_USE_INT8_QUANT=1` — deprecated; prefer `--deepep-dispatcher-output-dtype int8`.
+
+    **Why:** it lowers dispatch traffic.
+  </Step>
+
+  <Step title="Gather less after the Q projection (DeepSeek R1)">
+    On DeepSeek R1 prefill, set `SGLANG_USE_AG_AFTER_QLORA=1` together with `--enable-attn-tp-input-scattered`.
+
+    **Why:** it gathers fewer bytes after the low-rank Q projection; without the scattered-input flag the env var has no effect.
+  </Step>
+
+  <Step title="Copy the launch flags from the best-practice script">
+    Set `--nnodes`, `--node-rank`, and `--dist-init-addr`, plus the remaining environment variables, from the best-practice script for your model.
+
+    **Why:** the published scripts carry the complete validated set for each model.
+  </Step>
+</Steps>
 
 ## Troubleshooting
 

@@ -131,8 +131,6 @@ Ordered starting points for each deployment shape, distilled from the published 
 
 Each table below gives the **tuned reference value**, not the flag default. Role-specific values are written as `Prefill:`/`Decode:`; the `Default` column in the [Feature Support Matrix](/docs/hardware-platforms/ascend-npus/reference/support_features) has the raw default for every flag, and [Feature descriptions](#feature-descriptions) maps each Ascend feature to its switch.
 
-<a id="feature-descriptions" title="Referenced by external docs. Verify before removing."></a>
-
 ### Feature descriptions
 
 Each Ascend-relevant feature, its switch, and its default. The **Reference Value** columns below give tuned starting points; this table tells you which knob a feature name refers to.
@@ -355,7 +353,7 @@ MoE layers move tokens between ranks to reach their experts. On Ascend, the main
     </tr>
     <tr>
       <td>`DEEP_NORMAL_MODE_USE_INT8_QUANT=1`</td>
-      <td>Deprecated fallback that quantizes DeepEP dispatch activations to INT8, cutting communication volume at a small accuracy cost. It applies only when no explicit dispatcher dtype is set, and also affects default low-latency dispatch. Prefer `--deepep-dispatcher-output-dtype int8`; the env var is planned to become a no-op (see the [environment variables reference](/docs/hardware-platforms/ascend-npus/reference/environment_variables)).</td>
+      <td>Deprecated fallback that quantizes DeepEP dispatch activations to INT8, cutting communication volume at a small accuracy cost. It applies only when no explicit dispatcher dtype is set. Prefer `--deepep-dispatcher-output-dtype int8`; the env var is planned to become a no-op (see the [environment variables reference](/docs/hardware-platforms/ascend-npus/reference/environment_variables)).</td>
       <td>Prefill: `1` (legacy; prefer `--deepep-dispatcher-output-dtype int8`)</td>
     </tr>
     <tr>
@@ -391,7 +389,7 @@ Dedicated prefill nodes favor large un-chunked batches and no graph capture:
     </tr>
     <tr>
       <td>`--max-prefill-tokens`</td>
-      <td>Maximum input tokens admitted into one prefill batch. Default `16384`. With chunking disabled the first request may exceed it (bounded by KV capacity); with chunking on, each forward is bounded by `--chunked-prefill-size` instead. Large values such as `68000` require an explicit `--mem-fraction-static`; otherwise the auto heuristic reserves about `1.5 MB` per token for activations.</td>
+      <td>Maximum input tokens admitted into one prefill batch. Default `16384`. With chunking disabled the first request may exceed it (bounded by KV capacity); with chunking on, each forward is bounded by `--chunked-prefill-size` instead. Large values such as `68000` require an explicit `--mem-fraction-static`; otherwise the auto heuristic reserves about `1.5MB` per token for activations (when chunking is off; with chunking on, the reserve follows `--chunked-prefill-size`).</td>
       <td>`68000`</td>
     </tr>
     <tr>
@@ -613,7 +611,6 @@ Use this section to check a combination before you launch it. It lists only comb
 | Attention DP | `--dp-size` greater than 1 | ❌ | Model replicas cannot be combined with attention DP; `--dp-size` greater than 1 is single-node only. |
 | PD decode | Prefix cache | 🟠 | Decode forces radix caching off; enable it only with the experimental `--disaggregation-decode-enable-radix-cache`. |
 | Speculative decoding | Quantized target | 🟠 | The draft inherits the target quantization by default; pass `--speculative-draft-model-quantization unquant`. |
-| CP (V3.2/DSA) | Attention DP greater than 1 | ❌ | The interleave DSA path requires `DP = 1`; keep attention DP off when CP is on. |
 | EPLB | `ascend_fuseep` | ❌ | EPLB requires `deepep`; there is no startup guard today, so a wrong backend can fail silently. |
 | EPLB | Topology | ❌ unless `TP = EP = world size` | Migration asserts `tp_size == moe_ep_size == world_size`. |
 | CUDA graph | `--cuda-graph-max-bs-decode` smaller than `attn_tp_size` | ❌ | The capture bucket list becomes empty and startup aborts; use a multiple of `attn_tp_size`. |

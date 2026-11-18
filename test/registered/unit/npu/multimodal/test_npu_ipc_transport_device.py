@@ -79,6 +79,21 @@ def _consume_pooled_tensor(proxy_queue, result_queue, rebuild_device=0):
     result_queue.put(("ok", None))
 
 
+def _describe_producer_outcome(producer, producer_results) -> str:
+    """A consumer timeout usually just mirrors a producer-side failure."""
+    try:
+        outcome = producer_results.get(timeout=5)
+    except queue.Empty:
+        outcome = None
+    if outcome is None:
+        state = (
+            "still running" if producer.is_alive() else f"exitcode {producer.exitcode}"
+        )
+        return f"producer status: {state}, no result reported"
+    status, detail = outcome
+    return f"producer status: {status}" + (f" ({detail})" if detail else "")
+
+
 def _run_producer_consumer_test(test, consumer_device=0):
     ctx = mp.get_context("spawn")
     proxy_queue = ctx.Queue()
@@ -99,10 +114,16 @@ def _run_producer_consumer_test(test, consumer_device=0):
         try:
             consumer_result = consumer_results.get(timeout=120)
         except queue.Empty:
-            test.fail("NPU IPC consumer did not report in time")
+            test.fail(
+                "NPU IPC consumer did not report in time. "
+                + _describe_producer_outcome(producer, producer_results)
+            )
         consumer.join(timeout=10)
         if consumer_result[0] != "ok":
-            test.fail(f"NPU IPC consumer failed: {consumer_result[1]}")
+            test.fail(
+                f"NPU IPC consumer failed: {consumer_result[1]}. "
+                + _describe_producer_outcome(producer, producer_results)
+            )
         test.assertEqual(consumer.exitcode, 0)
 
         consumer_done.set()

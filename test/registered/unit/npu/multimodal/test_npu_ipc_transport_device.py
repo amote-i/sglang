@@ -1,0 +1,147 @@
+"""Real-device tests for the npu_ipc multimodal feature transport."""
+
+import gc
+import multiprocessing as mp
+import queue
+import time
+import unittest
+
+import torch
+
+from sglang.srt.multimodal.transport.cuda_ipc import MmItemMemoryPool
+from sglang.test.ci.ci_register import register_npu_ci
+from sglang.test.test_utils import CustomTestCase
+
+register_npu_ci(est_time=30, suite="extra-b-test-2-npu-a3")
+
+POOL_BYTES = 1 << 20
+CONSUMER_SLOTS = 1
+
+
+def _produce_pooled_tensor(proxy_queue, consumer_done, result_queue):
+    """Create a tokenizer-worker-like NPU IPC pool in a spawned producer."""
+    pool = source = proxy = None
+    try:
+        torch.npu.set_device(0)
+        pool = MmItemMemoryPool(
+            memory_size=POOL_BYTES,
+            recycle_interval=0.01,
+            base_gpu_id=0,
+            consumer_count=CONSUMER_SLOTS,
+        )
+        source = torch.arange(35, dtype=torch.float32, device="npu").reshape(5, 7)
+        expected = torch.arange(35, dtype=torch.float32).reshape(5, 7).tolist()
+        proxy = pool.wrap_tensor(source, use_pool_handle_cache=True)
+        if proxy is None:
+            raise RuntimeError("test tensor did not fit in the NPU IPC pool")
+        # Handing the proxy to another process is the dispatch point: the NPU
+        # protocol requires the producer fence so the consumer may read the
+        # slice without any ready-word wait (mirror of
+        # MultimodalFeatureTransport.prepare_mm_items_for_transport).
+        pool.fence_for_dispatch()
+        proxy_queue.put((proxy, expected))
+        if not consumer_done.wait(timeout=60):
+            raise TimeoutError("consumer did not acknowledge the NPU IPC tensor")
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            if pool.active_lease_count == 0:
+                break
+            time.sleep(0.05)
+        else:
+            raise TimeoutError("pool did not observe the consumer acknowledgement")
+    except Exception as exc:  # pragma: no cover - returned to the parent
+        result_queue.put(("error", repr(exc)))
+        return
+    finally:
+        del proxy, source
+        if pool is not None:
+            pool.shutdown()
+            del pool
+        gc.collect()
+    result_queue.put(("ok", None))
+
+
+def _consume_pooled_tensor(proxy_queue, result_queue, rebuild_device=0):
+    """Open the pool and read the slice in a spawned scheduler-like consumer."""
+    try:
+        torch.npu.set_device(rebuild_device)
+        try:
+            proxy, expected = proxy_queue.get(timeout=60)
+        except queue.Empty:
+            raise TimeoutError("consumer never received the NPU IPC proxy")
+        reconstructed = proxy.reconstruct_on_target_device(rebuild_device)
+        torch.npu.synchronize()
+        if reconstructed.cpu().tolist() != expected:
+            raise AssertionError("the consumer read back the wrong feature")
+    except Exception as exc:  # pragma: no cover - returned to the parent
+        result_queue.put(("error", repr(exc)))
+        return
+    result_queue.put(("ok", None))
+
+
+def _run_producer_consumer_test(test, consumer_device=0):
+    ctx = mp.get_context("spawn")
+    proxy_queue = ctx.Queue()
+    producer_results = ctx.Queue()
+    consumer_results = ctx.Queue()
+    consumer_done = ctx.Event()
+    producer = ctx.Process(
+        target=_produce_pooled_tensor,
+        args=(proxy_queue, consumer_done, producer_results),
+    )
+    consumer = ctx.Process(
+        target=_consume_pooled_tensor,
+        args=(proxy_queue, consumer_results, consumer_device),
+    )
+    producer.start()
+    consumer.start()
+    try:
+        try:
+            consumer_result = consumer_results.get(timeout=120)
+        except queue.Empty:
+            test.fail("NPU IPC consumer did not report in time")
+        consumer.join(timeout=10)
+        if consumer_result[0] != "ok":
+            test.fail(f"NPU IPC consumer failed: {consumer_result[1]}")
+        test.assertEqual(consumer.exitcode, 0)
+
+        consumer_done.set()
+        try:
+            producer_result = producer_results.get(timeout=120)
+        except queue.Empty:
+            test.fail("NPU IPC producer did not finish after the consumer exited")
+        test.assertEqual(producer_result[0], "ok", producer_result[1])
+        producer.join(timeout=10)
+        test.assertEqual(producer.exitcode, 0)
+    finally:
+        consumer_done.set()
+        for process in (consumer, producer):
+            if process.is_alive():
+                process.terminate()
+            process.join(timeout=10)
+
+
+@unittest.skipUnless(
+    hasattr(torch, "npu") and torch.npu.is_available(), "requires an NPU device"
+)
+class TestNpuIpcTransportOnDevice(CustomTestCase):
+    def test_pooled_tensor_reconstructs_in_a_spawned_process(self):
+        """The consumer process exits before the producer destroys the pool."""
+        _run_producer_consumer_test(self, consumer_device=0)
+
+    @unittest.skipUnless(
+        hasattr(torch, "npu") and torch.npu.device_count() >= 2,
+        "requires two NPUs",
+    )
+    def test_pooled_tensor_reconstructs_across_devices(self):
+        """The consumer reads and acknowledges through a cross-device mapping.
+
+        TP deployments put scheduler ranks on other devices than the pool's
+        base NPU; the plain-kernel acknowledgement write must work over that
+        peer view of the imported pool, not only on the pool's home device.
+        """
+        _run_producer_consumer_test(self, consumer_device=1)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -134,8 +134,52 @@ quay.io/ascend/sglang:main-cann9.1.0-a3
 ### Single-node online deployment
 
 Single-node deployment completes both prefill and decode within the same node (PD mixed mode), suitable for scenarios
-with limited hardware resources. This scenario is already covered in the best practice. For the complete, optimized
-deployment commands and benchmark data, see
+with limited hardware resources. Use the `DeepSeek-R1-0528-W4A8` checkpoint on all eight A3 Series cards (16 dies),
+with TP16 and DP attention. The BF16 weights of DeepSeek-R1 (about 1.3TB) exceed the device memory of a single A3
+Series node (about 1TB), so the quantized W4A8 checkpoint (376GB) is used instead.
+
+```shell
+# ============================================================
+# Before running, update the following variables:
+#   MODEL_PATH: path to the model weights directory
+# ============================================================
+
+MODEL_PATH=/path/to/model-weights
+
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+source /usr/local/Ascend/nnal/atb/set_env.sh
+
+export DEEPEP_HCCL_BUFFSIZE=2000
+export DEEPEP_NORMAL_LONG_SEQ_PER_ROUND_TOKENS=1024
+export DEEPEP_NORMAL_LONG_SEQ_ROUND=10
+export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
+export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=72
+export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
+
+python3 -m sglang.launch_server \
+    --model-path $MODEL_PATH \
+    --host 127.0.0.1 --port 6689 \
+    --trust-remote-code \
+    --attention-backend ascend \
+    --device npu \
+    --tp-size 16 \
+    --quantization modelslim \
+    --dtype bfloat16 \
+    --chunked-prefill-size 16384 \
+    --moe-a2a-backend deepep \
+    --deepep-mode auto \
+    --enable-dp-attention --dp-size 16 \
+    --enable-dp-lm-head \
+    --speculative-algorithm NEXTN \
+    --speculative-num-steps 3 \
+    --speculative-eagle-topk 1 \
+    --speculative-num-draft-tokens 4 \
+    --reasoning-parser deepseek-r1 \
+    --tool-call-parser deepseekv3 \
+    --mem-fraction-static 0.9
+```
+
+For the complete benchmark data and additional single-node configurations, see
 [DeepSeek-R1 Best Practice — W4A8 8P PD Mixed On A3 Series](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/deepseek_r1#single-node-pd-mixed).
 
 ### Multi-node PD disaggregation deployment

@@ -132,8 +132,52 @@ swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.
 ### Single-node online deployment
 
 Single-node deployment completes both prefill and decode within the same node (PD mixed mode), suitable for scenarios
-with limited hardware resources. This scenario is already covered in the best practice. For the complete, optimized
-deployment commands and benchmark data, see
+with limited hardware resources. Use the `Eco-Tech/Qwen3.5-397B-A17B-w4a8-mtp` checkpoint on all 8 A3 Series cards of
+one node (16 dies), with TP16 and NEXTN speculative decoding (the MTP head is bundled in the checkpoint); no BF16
+variant is documented for this model, so the W4A8 checkpoint is used.
+
+```shell
+# ============================================================
+# Before running, update the following variables:
+#   MODEL_PATH: path to the model weights directory
+# ============================================================
+
+MODEL_PATH=/path/to/model-weights
+
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+source /usr/local/Ascend/nnal/atb/set_env.sh
+
+export ASCEND_USE_FIA=1
+export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
+export GDN_ATTN_BACKEND_TRITON=1
+export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=128
+export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
+export SGLANG_ENABLE_SPEC_V2=1
+
+python3 -m sglang.launch_server \
+    --model-path $MODEL_PATH \
+    --host 127.0.0.1 --port 6688 \
+    --attention-backend ascend \
+    --device npu \
+    --tp-size 16 \
+    --quantization modelslim \
+    --dtype bfloat16 \
+    --mamba-ssm-dtype bfloat16 \
+    --mem-fraction-static 0.6 \
+    --enable-multimodal \
+    --mm-attention-backend ascend_attn \
+    --moe-a2a-backend deepep \
+    --deepep-mode auto \
+    --speculative-algorithm NEXTN \
+    --speculative-num-steps 3 \
+    --speculative-eagle-topk 1 \
+    --speculative-num-draft-tokens 4 \
+    --speculative-draft-model-quantization unquant \
+    --reasoning-parser qwen3 \
+    --tool-call-parser qwen3_coder
+```
+
+For the complete benchmark data and additional single-node configurations, see
 [Qwen3.5-397B Best Practice — PD Mixed On A3 Series](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/qwen3_5_397b#single-node-pd-mixed).
 
 ## Functional verification

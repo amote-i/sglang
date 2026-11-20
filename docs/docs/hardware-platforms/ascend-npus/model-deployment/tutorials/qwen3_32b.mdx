@@ -126,8 +126,43 @@ quay.io/ascend/sglang:main-cann9.1.0-a3
 ### Single-node online deployment
 
 Single-node deployment completes both prefill and decode within the same node (PD mixed mode), suitable for scenarios
-with limited hardware resources. This scenario is already covered in the best practice. For the complete, optimized
-deployment commands and benchmark data, see
+with limited hardware resources. Use the `Qwen/Qwen3-32B` checkpoint on one A3 Series card (2 dies), with TP2.
+
+```shell
+# ============================================================
+# Before running, update the following variables:
+#   MODEL_PATH: path to the model weights directory
+#   DRAFT_MODEL_PATH: path to the draft model weights directory
+# ============================================================
+
+MODEL_PATH=/path/to/model-weights
+DRAFT_MODEL_PATH=/path/to/draft-model-weights
+
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+source /usr/local/Ascend/nnal/atb/set_env.sh
+
+export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
+
+python3 -m sglang.launch_server \
+    --model-path $MODEL_PATH \
+    --host 127.0.0.1 --port 6688 \
+    --trust-remote-code \
+    --attention-backend ascend \
+    --device npu \
+    --tp-size 2 \
+    --dtype bfloat16 \
+    --mem-fraction-static 0.85 \
+    --speculative-algorithm EAGLE3 \
+    --speculative-draft-model-path $DRAFT_MODEL_PATH \
+    --speculative-num-steps 4 \
+    --speculative-eagle-topk 1 \
+    --speculative-num-draft-tokens 5 \
+    --speculative-draft-model-quantization unquant \
+    --reasoning-parser qwen3 \
+    --tool-call-parser qwen
+```
+
+For the complete benchmark data and additional single-node configurations, see
 [Qwen3-32B Best Practice — PD Mixed On A3 Series](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/qwen3_32b#single-node-pd-mixed).
 
 ## Functional verification

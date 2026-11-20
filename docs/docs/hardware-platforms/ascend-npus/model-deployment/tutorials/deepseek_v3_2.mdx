@@ -1,7 +1,7 @@
 ---
 title: "DeepSeek-V3.2"
 metatags:
-  description: "Deploy DeepSeek-V3.2 model with SGLang on Ascend NPUs, including multi-node PD disaggregation mode."
+  description: "Deploy DeepSeek-V3.2 model with SGLang on Ascend NPUs, including single-node and multi-node PD disaggregation modes."
 ---
 
 ## Introduction
@@ -12,8 +12,8 @@ multi-token prediction (MTP) for speculative decoding. DeepSeek-V3.2 introduces 
 mechanism, a fine-grained sparse attention mechanism powered by a lightning indexer, enabling significant efficiency
 improvements in long-context scenarios.
 
-This document demonstrates the deployment of DeepSeek-V3.2 on Ascend NPUs using SGLang, including multi-node PD
-disaggregation mode, feature configuration, and performance optimization.
+This document demonstrates the deployment of DeepSeek-V3.2 on Ascend NPUs using SGLang, including single-node
+deployment, multi-node PD disaggregation mode, feature configuration, and performance optimization.
 
 The commands in this document use the daily build image `quay.io/ascend/sglang:main-cann9.1.0-a3`.
 
@@ -125,6 +125,59 @@ quay.io/ascend/sglang:main-cann9.1.0-a3
 </Tip>
 
 ## Online service deployment
+
+### Single-node online deployment
+
+Single-node deployment completes both prefill and decode within the same node (PD mixed mode), suitable for scenarios
+with limited hardware resources. Use the `DeepSeek-V3.2-W8A8` checkpoint on all eight A3 Series cards (16 dies), with
+TP16 and DP attention. The BF16 weights of DeepSeek-V3.2 (about 1.3TB) exceed the device memory of a single A3 Series
+node (about 1TB), and the W8A8 checkpoint (694.47GB) is the only documented quantized variant, so it is used here.
+
+The configuration below is derived from the multi-node best-practice setup and is provided as a starting point; it has
+not been benchmark-validated separately.
+
+```shell
+# ============================================================
+# Before running, update the following variables:
+#   MODEL_PATH: path to the model weights directory
+# ============================================================
+
+MODEL_PATH=/path/to/model-weights
+
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+source /usr/local/Ascend/nnal/atb/set_env.sh
+
+export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
+export DEEPEP_HCCL_BUFFSIZE=1200
+export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=8
+export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
+
+python3 -m sglang.launch_server \
+    --model-path $MODEL_PATH \
+    --host 127.0.0.1 --port 6689 \
+    --trust-remote-code \
+    --attention-backend ascend \
+    --device npu \
+    --tp-size 16 \
+    --ep-size 16 \
+    --quantization modelslim \
+    --chunked-prefill-size 16384 \
+    --moe-a2a-backend deepep \
+    --deepep-mode auto \
+    --moe-dense-tp-size 1 \
+    --enable-dp-attention --dp-size 8 \
+    --enable-dp-lm-head \
+    --speculative-algorithm NEXTN \
+    --speculative-num-steps 3 \
+    --speculative-eagle-topk 1 \
+    --speculative-num-draft-tokens 4 \
+    --reasoning-parser deepseek-v3 \
+    --tool-call-parser deepseekv32 \
+    --mem-fraction-static 0.8
+```
+
+For benchmark-validated configurations and benchmark data, see the
+[DeepSeek-V3.2 Best Practice](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/deepseek_v3_2) page.
 
 ### Multi-node PD disaggregation deployment
 

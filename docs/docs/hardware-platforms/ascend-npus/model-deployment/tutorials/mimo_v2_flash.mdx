@@ -1,7 +1,7 @@
 ---
 title: "MiMo-V2-Flash"
 metatags:
-  description: "Deploy MiMo-V2-Flash model with SGLang on Ascend NPUs, including multi-node PD disaggregation mode."
+  description: "Deploy MiMo-V2-Flash model with SGLang on Ascend NPUs, including single-node and multi-node PD disaggregation modes."
 ---
 
 ## Introduction
@@ -10,8 +10,8 @@ MiMo-V2-Flash is a Mixture-of-Experts (MoE) large language model developed by Xi
 with speculative decoding capabilities for accelerated inference. The model is optimized for high throughput and low
 latency scenarios through PD disaggregation deployment.
 
-This document demonstrates the deployment of MiMo-V2-Flash on Ascend NPUs using SGLang, including multi-node PD
-disaggregation mode, feature configuration, and performance optimization.
+This document demonstrates the deployment of MiMo-V2-Flash on Ascend NPUs using SGLang, including single-node
+deployment, multi-node PD disaggregation mode, feature configuration, and performance optimization.
 
 The commands in this document use the daily build image `quay.io/ascend/sglang:main-cann9.1.0-a3`.
 
@@ -123,6 +123,54 @@ quay.io/ascend/sglang:main-cann9.1.0-a3
 </Tip>
 
 ## Online service deployment
+
+### Single-node online deployment
+
+Single-node deployment completes both prefill and decode within the same node (PD mixed mode), suitable for scenarios
+with limited hardware resources. Use the `MiMo-V2-Flash-W8A8` checkpoint on 8 A3 Series cards (16 dies), with TP16, DP
+attention, and EAGLE speculative decoding (the draft head is bundled in the checkpoint); BF16 is not used because it is
+not a validated checkpoint for this model on Ascend NPUs.
+
+```shell
+# ============================================================
+# Before running, update the following variable:
+#   MODEL_PATH: path to the model weights directory
+# ============================================================
+
+MODEL_PATH=/path/to/model-weights
+
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+source /usr/local/Ascend/nnal/atb/set_env.sh
+
+export ASCEND_USE_FIA=1
+export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
+export DEEPEP_HCCL_BUFFSIZE=1024
+export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=128
+
+python3 -m sglang.launch_server \
+    --model-path $MODEL_PATH \
+    --host 127.0.0.1 --port 9903 \
+    --trust-remote-code \
+    --attention-backend ascend \
+    --device npu \
+    --tp-size 16 \
+    --mem-fraction-static 0.8 \
+    --swa-full-tokens-ratio 0.3 \
+    --max-running-requests 64 \
+    --enable-dp-attention \
+    --dp-size 2 \
+    --enable-dp-lm-head \
+    --moe-a2a-backend deepep \
+    --deepep-mode auto \
+    --speculative-algorithm EAGLE \
+    --speculative-num-steps 3 \
+    --speculative-eagle-topk 1 \
+    --speculative-num-draft-tokens 4 \
+    --enable-multi-layer-eagle
+```
+
+For the complete benchmark data and additional configurations, see the
+[MiMo-V2-Flash Best Practice](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/mimo_v2_flash).
 
 ### Multi-node PD disaggregation deployment
 

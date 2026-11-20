@@ -127,8 +127,53 @@ quay.io/ascend/sglang:main-cann9.1.0-a3
 ### Single-node online deployment
 
 Single-node deployment completes both prefill and decode within the same node (PD mixed mode), suitable for scenarios
-with limited hardware resources. This scenario is already covered in the best practice. For the complete, optimized
-deployment commands and benchmark data, see
+with limited hardware resources. Use the `MiniMax-M2.5-w8a8-QuaRot` checkpoint on 4 A3 Series cards (8 dies), with TP8
+and EAGLE3 speculative decoding; BF16 is not used because no BF16 variant is validated for this model on Ascend NPUs.
+
+```shell
+# ============================================================
+# Before running, update the following variables:
+#   MODEL_PATH: path to the model weights directory
+#   DRAFT_MODEL_PATH: path to the draft model weights directory
+# ============================================================
+
+MODEL_PATH=/path/to/model-weights
+DRAFT_MODEL_PATH=/path/to/draft-model-weights
+export PYTHONPATH=${DRAFT_MODEL_PATH}:$PYTHONPATH
+
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+source /usr/local/Ascend/nnal/atb/set_env.sh
+
+export ASCEND_USE_FIA=1
+export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
+export HCCL_BUFFSIZE=128
+export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=640
+export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
+export SGLANG_EXTERNAL_MODEL_PACKAGE=custom_eagle3
+
+python3 -m sglang.launch_server \
+    --model-path $MODEL_PATH \
+    --host 127.0.0.1 --port 6689 \
+    --trust-remote-code \
+    --attention-backend ascend \
+    --device npu \
+    --tp-size 8 \
+    --mem-fraction-static 0.74 \
+    --moe-a2a-backend deepep \
+    --deepep-mode auto \
+    --quantization modelslim \
+    --speculative-algorithm EAGLE3 \
+    --speculative-draft-model-path $DRAFT_MODEL_PATH \
+    --speculative-num-steps 3 \
+    --speculative-eagle-topk 1 \
+    --speculative-num-draft-tokens 4 \
+    --speculative-draft-model-quantization unquant \
+    --dtype bfloat16 \
+    --reasoning-parser minimax-append-think \
+    --tool-call-parser minimax-m2
+```
+
+For the complete benchmark data and additional single-node configurations, see
 [MiniMax-M2.5 Best Practice — PD Mixed On A3 Series](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/minimax_m2_5#single-node-pd-mixed).
 
 ## Functional verification

@@ -1,7 +1,7 @@
 ---
 title: "GLM-5.1"
 metatags:
-  description: "Deploy GLM-5.1 model with SGLang on Ascend NPUs, including multi-node PD mixed and PD disaggregation modes."
+  description: "Deploy GLM-5.1 model with SGLang on Ascend NPUs, including single-node, multi-node PD mixed, and PD disaggregation modes."
 ---
 
 ## Introduction
@@ -13,8 +13,8 @@ The model features built-in bilingual (Chinese-English) capabilities with a unif
 reasoning, math, code, and tool calling tasks. GLM-5.1 supports both Thinking mode (step-by-step reasoning) and Instruct
 mode (direct response), with a native context window of approximately 200k tokens.
 
-This document demonstrates the deployment of GLM-5.1 on Ascend NPUs using SGLang, including multi-node PD mixed mode,
-multi-node PD disaggregation mode, feature configuration, and performance optimization.
+This document demonstrates the deployment of GLM-5.1 on Ascend NPUs using SGLang, including single-node deployment,
+multi-node PD mixed mode, multi-node PD disaggregation mode, feature configuration, and performance optimization.
 
 This document is validated and written based on **SGLang v0.5.16**. The current model (GLM-5.1) is fully supported in
 this version. To use the latest features (e.g., speculative decoding, multi-node deployment), it is recommended to use
@@ -135,6 +135,53 @@ swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.
 </Tip>
 
 ## Online service deployment
+
+### Single-node deployment
+
+Single-node deployment completes both prefill and decode within the same node (PD mixed mode), suitable for scenarios
+with limited hardware resources. Use the `GLM-5.1-w4a8` checkpoint on 8 A3 Series cards (16 dies), with TP16. The BF16
+checkpoint (1.51TB) exceeds the ~1TB device memory of a single node, so the W4A8 quantized checkpoint is used instead.
+
+```shell
+# ============================================================
+# Before running, update the following variables:
+#   MODEL_PATH: path to the model weights directory
+# ============================================================
+
+MODEL_PATH=/path/to/model-weights
+
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+source /usr/local/Ascend/nnal/atb/set_env.sh
+
+export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
+export DEEPEP_HCCL_BUFFSIZE=2500
+export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=32
+export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
+
+python3 -m sglang.launch_server \
+    --model-path $MODEL_PATH \
+    --host 127.0.0.1 --port 6689 \
+    --trust-remote-code \
+    --attention-backend ascend \
+    --device npu \
+    --quantization modelslim \
+    --tp-size 16 \
+    --enable-dp-attention --dp-size 8 \
+    --chunked-prefill-size 8192 \
+    --mem-fraction-static 0.65 \
+    --moe-a2a-backend deepep \
+    --deepep-mode auto \
+    --speculative-algorithm NEXTN \
+    --speculative-num-steps 3 \
+    --speculative-eagle-topk 1 \
+    --speculative-num-draft-tokens 4 \
+    --speculative-draft-model-quantization unquant \
+    --reasoning-parser glm45 \
+    --tool-call-parser glm47
+```
+
+For the complete, optimized deployment commands and benchmark data, see the
+[GLM-5.1 Best Practice](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/glm_5_1) page.
 
 ### Multi-node PD mixed deployment
 

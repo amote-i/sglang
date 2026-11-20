@@ -129,8 +129,46 @@ quay.io/ascend/sglang:main-cann9.1.0-a3
 ### Single-node online deployment
 
 Single-node deployment completes both prefill and decode within the same node (PD mixed mode), suitable for scenarios
-with limited hardware resources. This scenario is already covered in the best practice. For the complete, optimized
-deployment commands and benchmark data, see
+with limited hardware resources. Use the `Qwen/Qwen3-Next-80B-A3B-Instruct` checkpoint on two A3 Series cards (4 dies),
+with TP4; the same BF16 checkpoint serves as the NEXTN draft model.
+
+```shell
+# ============================================================
+# Before running, update the following variables:
+#   MODEL_PATH: path to the model weights directory
+#   DRAFT_MODEL_PATH: path to the draft model weights directory
+# ============================================================
+
+MODEL_PATH=/path/to/model-weights
+DRAFT_MODEL_PATH=/path/to/model-weights
+
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+source /usr/local/Ascend/nnal/atb/set_env.sh
+
+export ASCEND_USE_FIA=1
+export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
+
+python3 -m sglang.launch_server \
+    --model-path $MODEL_PATH \
+    --host 127.0.0.1 --port 6688 \
+    --trust-remote-code \
+    --attention-backend ascend \
+    --device npu \
+    --tp-size 4 \
+    --dtype bfloat16 \
+    --mem-fraction-static 0.85 \
+    --speculative-algorithm NEXTN \
+    --speculative-num-steps 3 \
+    --speculative-eagle-topk 1 \
+    --speculative-num-draft-tokens 4 \
+    --speculative-draft-model-quantization unquant \
+    --speculative-draft-model-path $DRAFT_MODEL_PATH \
+    --mamba-ssm-dtype bfloat16 \
+    --reasoning-parser qwen3 \
+    --tool-call-parser qwen3_coder
+```
+
+For the complete benchmark data and additional single-node configurations, see
 [Qwen3-Next-80B-A3B-Instruct Best Practice — PD Mixed On A3 Series](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/qwen3_next_80b_a3b_instruct#single-node-pd-mixed).
 
 ## Functional verification

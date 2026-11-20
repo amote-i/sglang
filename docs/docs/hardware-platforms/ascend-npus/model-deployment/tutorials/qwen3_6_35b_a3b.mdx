@@ -59,6 +59,7 @@ Before following this tutorial, complete the environment setup in the documents 
 Before downloading model weights, check the model size to reserve enough disk space.
 For multi-node deployment, download the weights to a shared directory accessible to all nodes.
 
+- [Qwen/Qwen3.6-35B-A3B](https://www.modelscope.cn/models/Qwen/Qwen3.6-35B-A3B) (BF16, 71.90GB)
 - [Eco-Tech/Qwen3.6-35B-A3B-w8a8](https://www.modelscope.cn/models/Eco-Tech/Qwen3.6-35B-A3B-w8a8) (W8A8 quantized version, 39.81GB)
 
 <Info>
@@ -129,8 +130,45 @@ swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.
 ### Single-node online deployment
 
 Single-node deployment completes both prefill and decode within the same node (PD mixed mode), suitable for scenarios
-with limited hardware resources. This scenario is already covered in the best practice. For the complete, optimized
-deployment commands and benchmark data, see
+with limited hardware resources. Use the `Qwen/Qwen3.6-35B-A3B` checkpoint on one A3 Series card (2 dies), with TP2;
+the BF16 checkpoint is preferred over the W8A8 variant for full-precision accuracy.
+
+```shell
+# ============================================================
+# Before running, update the following variables:
+#   MODEL_PATH: path to the model weights directory
+# ============================================================
+
+MODEL_PATH=/path/to/model-weights
+
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+source /usr/local/Ascend/nnal/atb/set_env.sh
+
+export ASCEND_USE_FIA=1
+export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
+export SGLANG_ENABLE_SPEC_V2=1
+
+python3 -m sglang.launch_server \
+    --model-path $MODEL_PATH \
+    --host 127.0.0.1 --port 6688 \
+    --trust-remote-code \
+    --attention-backend ascend \
+    --device npu \
+    --tp-size 2 \
+    --dtype bfloat16 \
+    --mem-fraction-static 0.85 \
+    --enable-multimodal \
+    --mm-attention-backend ascend_attn \
+    --mamba-ssm-dtype bfloat16 \
+    --speculative-algorithm NEXTN \
+    --speculative-num-steps 3 \
+    --speculative-eagle-topk 1 \
+    --speculative-num-draft-tokens 4 \
+    --reasoning-parser qwen3 \
+    --tool-call-parser qwen3_coder
+```
+
+For the complete benchmark data and additional single-node configurations, see
 [Qwen3.6-35B-A3B Best Practice — PD Mixed On A3 Series](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/qwen3_6_35b_a3b#single-node-pd-mixed).
 
 ## Functional verification

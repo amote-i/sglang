@@ -54,9 +54,9 @@ Before following this tutorial, complete the environment setup in the documents 
   It covers version compatibility (CANN, TorchNPU, Triton, kernels, etc.), building from source or from a Dockerfile,
   and recommended system settings (CPU power scheme, NUMA, swap).
 
-The mixed and PD disaggregation scripts below require a CANN **9.1.0** environment, the corresponding ATB and customized
-operator libraries, a compatible SGLang source checkout, and working inter-node HCCL/Gloo connectivity. Ensure that
-all participating nodes use compatible software versions and can access the model weights. The PD topology additionally requires the configured MemFabric components.
+The mixed and PD disaggregation examples below assume a CANN **9.1.0** runtime and require working inter-node
+HCCL/Gloo connectivity. Ensure that all participating nodes use compatible software versions and can access the
+model weights. The PD topology additionally requires the configured MemFabric components.
 
 ### Model weights
 
@@ -75,58 +75,23 @@ uses **two A3 Series nodes for prefill and two additional A3 nodes for decode**.
 contains the required MTP weights before enabling NEXTN speculative decoding.
 </Info>
 
-For hardware specifications (memory per device, devices per node, and differences between A2 and A3),
+For hardware specifications (memory per die and dies per card),
 see [Ascend NPU Reference — Hardware](/docs/hardware-platforms/ascend-npus/reference/glossary#hardware).
 
 ## Installation
 
 <Warning>
-Ensure sufficient disk space before pulling images. A CANN Docker image requires at least **30GB** of free space.
-CANN 9.1.0 base images do **not** by themselves include a ready-to-run SGLang environment: install a compatible
-SGLang build, TorchNPU, ATB, custom operators, and other required dependencies before running the deployment scripts.
+Ensure sufficient disk space before pulling images. The Docker image requires at least **30GB** of free space.
 </Warning>
 
-The commands below start CANN 9.1.0 base images. Follow
-[SGLang Installation with NPU Support](/docs/hardware-platforms/ascend-npus/getting-started/installation)
-to install SGLang and the required runtime components inside the container. Use the matching image for your hardware.
+The dependencies required for the NPU runtime environment have been integrated into a Docker image and uploaded to the
+online platform. You can directly pull it.
 
-<Tabs>
-  <Tab title="A3 Series">
+Both **stable releases** and **daily builds** are available. CANN 9.1.0 has no stable release yet, so the following
+command uses the validated build tag `cann9.1.0-a3-B105`.
+For details, see [Docker image versions](/docs/hardware-platforms/ascend-npus/faq#8-docker-image-versions-stable-release-vs-daily-build).
 
-```bash Command
-docker pull swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.1.0-a3-B105
-
-docker run -itd --shm-size=16g --name ${NAME} \
---privileged=true --net=host \
--v /var/queue_schedule:/var/queue_schedule \
--v /etc/ascend_install.info:/etc/ascend_install.info \
--v /usr/local/sbin:/usr/local/sbin \
--v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
--v /usr/local/Ascend/firmware:/usr/local/Ascend/firmware \
---device=/dev/davinci0:/dev/davinci0 \
---device=/dev/davinci1:/dev/davinci1 \
---device=/dev/davinci2:/dev/davinci2 \
---device=/dev/davinci3:/dev/davinci3 \
---device=/dev/davinci4:/dev/davinci4 \
---device=/dev/davinci5:/dev/davinci5 \
---device=/dev/davinci6:/dev/davinci6 \
---device=/dev/davinci7:/dev/davinci7 \
---device=/dev/davinci8:/dev/davinci8 \
---device=/dev/davinci9:/dev/davinci9 \
---device=/dev/davinci10:/dev/davinci10 \
---device=/dev/davinci11:/dev/davinci11 \
---device=/dev/davinci12:/dev/davinci12 \
---device=/dev/davinci13:/dev/davinci13 \
---device=/dev/davinci14:/dev/davinci14 \
---device=/dev/davinci15:/dev/davinci15 \
---device=/dev/davinci_manager:/dev/davinci_manager \
---device=/dev/hisi_hdc:/dev/hisi_hdc \
---entrypoint=bash \
-swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.1.0-a3-B105
-```
-
-  </Tab>
-  <Tab title="A2 Series">
+{/* TODO: Interim explanation (CANN 9.1.0 has no stable release yet). Remove it and switch the tag below to the stable release once it is published. */}
 
 ```bash Command
 docker pull swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.1.0-a3-B105
@@ -159,17 +124,11 @@ docker run -itd --shm-size=16g --name ${NAME} \
 --entrypoint=bash \
 swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.1.0-a3-B105
 ```
-
-  </Tab>
-</Tabs>
 
 <Tip>
 - If the model weights have already been downloaded to a shared directory, use `-v` to mount the model path into the
   container, for example: `-v /path/to/models:/models`.
 - Replace `${NAME}` with your container name or remove `--name` to use the default name.
-- The listed `/dev/davinci*` mappings follow the 16-device A3 example in the original tutorial. Remove mappings for
-  devices that do not exist on your host, particularly when using A2 nodes.
-- If you already have a validated CANN 9.1.0 SGLang development image, you can use it instead of building from the base image.
 </Tip>
 
 ## Online service deployment

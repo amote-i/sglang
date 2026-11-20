@@ -82,7 +82,7 @@ python scripts/release/bump_sglang_version.py 0.5.3rc0
 - `docker/rocm.Dockerfile`
 - `docs/docs/get-started/install.mdx`
 - `docs/docs/hardware-platforms/amd_gpu.mdx`
-- `docs/docs/hardware-platforms/ascend-npus/ascend_npu.mdx`
+- `docs/docs/hardware-platforms/ascend-npus/getting-started/installation.mdx`
 - `python/pyproject.toml`
 - `python/pyproject_other.toml`
 - `python/pyproject_npu.toml`

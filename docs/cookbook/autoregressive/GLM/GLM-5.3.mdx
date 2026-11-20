@@ -72,9 +72,9 @@ export LD_LIBRARY_PATH="/usr/local/Ascend/ascend-toolkit/latest/opp/vendors/cust
 ```
 
 </Tab>
-<Tab title="950PR/DT series">
+<Tab title="950PR/DT Series">
 
-Use the compatible 950PR/DT series SGLang checkout, CANN environment, and custom operators used for your deployment. Set `SGLANG_ROOT` to that checkout; these recipes do not prescribe an image tag.
+Use the compatible 950PR/DT Series SGLang checkout, CANN environment, and custom operators used for your deployment. Set `SGLANG_ROOT` to that checkout; these recipes do not prescribe an image tag.
 
 ```bash Command
 unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY ASCEND_LAUNCH_BLOCKING
@@ -88,7 +88,7 @@ export PYTHONPATH="${SGLANG_ROOT}/python:${PYTHONPATH:-}"
 
 Replace the model path in the generated command with your mounted ModelSlim checkpoint directory. Include its configuration, tokenizer, quantization metadata, and MTP weights.
 
-Use a locally prepared **W8A8** checkpoint for A3. On 950PR/DT series, both unified serving and PD disaggregation use the same **W8A8C8_MXFP8** checkpoint. Both 950PR/DT series recipes explicitly use FP8 E4M3 KV cache and BF16 draft KV cache.
+Use a locally prepared **W8A8** checkpoint for A3. On 950PR/DT Series, both unified serving and PD disaggregation use the same **W8A8C8_MXFP8** checkpoint. Both 950PR/DT Series recipes explicitly use FP8 E4M3 KV cache and BF16 draft KV cache.
 
 Replace network placeholders such as `<network-interface>`, `<prefill-head-ip>`, and `<decode-head-ip>` in the generated NPU command with your cluster settings.
 

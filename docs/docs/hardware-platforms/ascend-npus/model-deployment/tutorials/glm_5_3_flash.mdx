@@ -11,7 +11,7 @@ Attention (DSA), multi-token prediction (MTP), and ModelSlim quantized weights.
 
 This document demonstrates the deployment of GLM-5.3-Flash on Ascend NPUs using SGLang, including single-node
 prefill-decode mixed deployment, prefill-decode disaggregation, feature configuration, and performance tuning.
-The examples use W8A8 weights on A3 Series and W8A8_MXFP8 weights on 950PR/DT series.
+The examples use W8A8 weights on A3 Series and W8A8_MXFP8 weights on 950PR/DT Series.
 
 ## Supported features
 
@@ -37,7 +37,7 @@ recommended configurations for each deployment scenario, see [Best practices](#b
 </Note>
 
 For feature compatibility and conflicts, see
-[Feature Compatibility](/docs/hardware-platforms/ascend-npus/ascend_npu_optimization#feature-compatibility).
+[Feature Compatibility](/docs/hardware-platforms/ascend-npus/optimization/parameter_tuning#feature-compatibility).
 
 ## Prerequisites
 
@@ -45,10 +45,10 @@ For feature compatibility and conflicts, see
 
 Before following this tutorial, complete the environment setup in the documents below:
 
-- [Ascend NPU Quickstart](/docs/hardware-platforms/ascend-npus/ascend_npu_quick_start) — the fastest way to get started.
+- [Ascend NPU Quickstart](/docs/hardware-platforms/ascend-npus/getting-started/quick_start) — the fastest way to get started.
   It walks you through launching the official container image, starting the SGLang server, and sending a test request.
   Recommended if you are new to SGLang on Ascend.
-- [SGLang Installation with NPU Support](/docs/hardware-platforms/ascend-npus/ascend_npu) — the full installation guide.
+- [SGLang Installation with NPU Support](/docs/hardware-platforms/ascend-npus/getting-started/installation) — the full installation guide.
   It covers the component version mapping (CANN, TorchNPU, Triton, kernels, etc.), building from source or from a
   Dockerfile, and recommended system settings (CPU power scheme, NUMA, swap). Use it when you need to install or customize
   the environment instead of using the official image.
@@ -61,7 +61,7 @@ For PD disaggregation, download the weights to a shared directory accessible to 
 - [GLM-5.3-Flash-w8a8](https://www.modelscope.cn/models/Eco-Tech/GLM-5.3-Flash-w8a8) (W8A8, 332.97GB, for A3 Series)
 - [GLM-5.3-Flash-w8a8-mxfp8](https://www.modelscope.cn/models/Eco-Tech/GLM-5.3-Flash-w8a8-mxfp8) (W8A8_MXFP8, 338.12GB, for 950PR/DT Series)
 - You can use [msmodelslim](https://gitcode.com/Ascend/msmodelslim) to quantize the model. For quantization guidance, see
-  [Quantization on Ascend NPU](/docs/hardware-platforms/ascend-npus/ascend_npu_quantization).
+  [Quantization on Ascend NPU](/docs/hardware-platforms/ascend-npus/optimization/quantization).
 
 The checkpoint directory must contain the model configuration, tokenizer files, quantized weights,
 `quant_model_description.json`, and the MTP weights required by NEXTN.
@@ -69,12 +69,12 @@ Set `MODEL_PATH` to this directory inside the container.
 
 <Info>
 A3 single-node deployment uses one full A3 Series node: eight cards and 16 dies, with `--tp-size 16`.
-950PR/DT series single-node deployment uses eight NPU devices, with `--tp-size 8`.
+950PR/DT Series single-node deployment uses eight NPU devices, with `--tp-size 8`.
 Each PD disaggregation configuration uses two nodes of the same platform: one for prefill and one for decode.
 </Info>
 
 For hardware specifications and terminology, see
-[Ascend NPU Reference — Hardware](/docs/hardware-platforms/ascend-npus/ascend_npu_reference#hardware).
+[Ascend NPU Reference — Hardware](/docs/hardware-platforms/ascend-npus/reference/glossary#hardware).
 For the PD disaggregation configuration reference, see [Best practices](#best-practices).
 
 ## Installation
@@ -83,9 +83,14 @@ For the PD disaggregation configuration reference, see [Best practices](#best-pr
 Reserve enough disk space for both the container image and model weights before pulling the image.
 </Warning>
 
-Use a SGLang image with the runtime components required by your target platform and deployment mode.
-Replace `IMAGE`, `NAME`, and `MODEL_DIR` below, then start the container.
-For 950PR/DT series PD disaggregation, choose an image that supports DP attention.
+Both **stable releases** and **daily builds** are available. CANN 9.1.0 has no stable release yet, so the following
+commands use the validated build tags `cann9.1.0-a3-B105` (A3 Series) and `cann9.1.0-950-B105` (950PR/DT Series).
+For details, see [Docker image versions](/docs/hardware-platforms/ascend-npus/faq#8-docker-image-versions-stable-release-vs-daily-build).
+
+{/* TODO: Interim explanation (CANN 9.1.0 has no stable release yet). Remove it and switch the tags below to the stable release once it is published. */}
+
+Select the tab for your target platform, then set `NAME` and `MODEL_DIR` (keep the pre-set `IMAGE` unless you need a
+different one) and start the container.
 
 <Tabs>
   <Tab title="A3 Series">
@@ -142,7 +147,7 @@ docker exec -it "$NAME" bash
 ```bash Command
 # ============================================================
 # Before running, update the following variables:
-#   IMAGE: SGLang image for 950PR/DT series
+#   IMAGE: SGLang image for 950PR/DT Series
 #   NAME: container name
 #   MODEL_DIR: model weights directory on the host
 # ============================================================
@@ -196,7 +201,7 @@ Prefill and decode run in the same instance. Select the script for your platform
 <Tabs>
   <Tab title="A3 Series">
 
-Use the ModelSlim W8A8 checkpoint on one A3 series node, with TP16.
+Use the ModelSlim W8A8 checkpoint on one A3 Series node, with TP16.
 Replace `MODEL_PATH` with the checkpoint directory inside the container.
 
 ```shell
@@ -242,7 +247,7 @@ python3 -m sglang.launch_server \
   </Tab>
   <Tab title="950PR/DT Series">
 
-Use the ModelSlim W8A8_MXFP8 checkpoint on one 950PR/DT series node, with TP8 and no DP attention.
+Use the ModelSlim W8A8_MXFP8 checkpoint on one 950PR/DT Series node, with TP8 and no DP attention.
 Replace `MODEL_PATH` with the checkpoint directory inside the container.
 
 ```shell
@@ -302,7 +307,7 @@ Ensure the worker HTTP ports, prefill bootstrap port, and MemFabric store port a
 <Tabs>
   <Tab title="A3 Series">
 
-Use W8A8 weights on two A3 series nodes. The prefill instance uses TP4 / PP4 / DP4; the decode instance uses
+Use W8A8 weights on two A3 Series nodes. The prefill instance uses TP4 / PP4 / DP4; the decode instance uses
 TP16 / PP1 / DP16 and NEXTN speculative decoding with three steps and four draft tokens.
 Run the CPU tuning commands with the required host privileges.
 
@@ -424,7 +429,7 @@ fi
   </Tab>
   <Tab title="950PR/DT Series">
 
-Use W8A8_MXFP8 weights on two 950PR/DT series nodes. Both instances use TP8 / PP1 / DP2 and NEXTN speculative decoding
+Use W8A8_MXFP8 weights on two 950PR/DT Series nodes. Both instances use TP8 / PP1 / DP2 and NEXTN speculative decoding
 with four steps and five draft tokens. The nodes must be able to communicate over the `device_urma` transport.
 
 ```shell
@@ -556,17 +561,17 @@ curl "http://${HOST}:${PORT}/generate" \
 Check for an HTTP 200 response with the generated answer. Once the server prints
 `The server is fired up and ready to roll!`, it is ready to accept requests.
 For Health Check, Generate, Chat Completions, and port usage examples, see
-[Testing the Service](/docs/hardware-platforms/ascend-npus/ascend_npu#testing-the-service).
+[Testing the Service](/docs/hardware-platforms/ascend-npus/getting-started/installation#testing-the-service).
 
 ## Accuracy evaluation
 
 For evaluation methods and datasets, see
-[Accuracy Evaluation on Ascend NPU](/docs/hardware-platforms/ascend-npus/ascend_npu_accuracy_evaluation).
+[Accuracy Evaluation on Ascend NPU](/docs/hardware-platforms/ascend-npus/evaluation/accuracy_evaluation).
 
 ## Performance
 
 For benchmark methods and metric definitions, see
-[Performance Testing on Ascend NPU](/docs/hardware-platforms/ascend-npus/ascend_npu_performance_testing).
+[Performance Testing on Ascend NPU](/docs/hardware-platforms/ascend-npus/evaluation/performance_testing).
 
 For a generated shared-prefix benchmark workload, use approximately 128K input tokens and 1K output tokens.
 For mixed deployment, use the worker host and port 8810. For PD disaggregation, use the router host and port 8000.
@@ -580,14 +585,14 @@ The [Online service deployment](#online-service-deployment) section above contai
 single-node mixed deployment and PD disaggregation.
 
 For the optimization feature catalog and compatibility details, see
-[Optimization on Ascend NPU](/docs/hardware-platforms/ascend-npus/ascend_npu_optimization).
+[Optimization on Ascend NPU](/docs/hardware-platforms/ascend-npus/optimization/parameter_tuning).
 
 ## Performance tuning
 
 For the feature overview, see [Supported features](#supported-features). For tuning parameters and feature
-compatibility, see [Optimization on Ascend NPU](/docs/hardware-platforms/ascend-npus/ascend_npu_optimization).
+compatibility, see [Optimization on Ascend NPU](/docs/hardware-platforms/ascend-npus/optimization/parameter_tuning).
 
 ## FAQ
 
 For environment, installation, and general parameter issues, see
-[Ascend NPU FAQ](/docs/hardware-platforms/ascend-npus/ascend_npu_faq).
+[Ascend NPU FAQ](/docs/hardware-platforms/ascend-npus/faq).

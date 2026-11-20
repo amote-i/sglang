@@ -1,6 +1,6 @@
 ---
 title: GLM-5.3-Flash
-description: "Deploy GLM-5.3-Flash with SGLang using recipes for H100, H200, B200, B300, GB200, GB300, MI300X, MI325X, MI355X, and TPU7x, with MTP and multimodal serving, plus Ascend A3 and 950PR/DT series NPU recipes."
+description: "Deploy GLM-5.3-Flash with SGLang using recipes for H100, H200, B200, B300, GB200, GB300, MI300X, MI325X, MI355X, and TPU7x, with MTP and multimodal serving, plus Ascend A3 and 950PR/DT Series NPU recipes."
 tag: NEW
 ---
 
@@ -57,9 +57,9 @@ source /usr/local/Ascend/cann-9.1.0/opp/vendors/customize/bin/set_env.bash
 ```
 
 </Tab>
-<Tab title="950PR/DT series">
+<Tab title="950PR/DT Series">
 
-Use a CANN 9.1.0 SGLang image with the custom operators and MemFabric runtime required by the tutorial; PD mode also requires DP-attention support. The tutorial does not specify a 950PR/DT series image tag.
+Use a CANN 9.1.0 SGLang image with the custom operators and MemFabric runtime required by the tutorial; PD mode also requires DP-attention support. The tutorial does not specify a 950PR/DT Series image tag.
 
 ```bash Command
 NPU_IMAGE="<your-compatible-950pr-dt-series-image>"
@@ -79,7 +79,7 @@ source /usr/local/memfabric_hybrid/set_env.sh
 
 Replace the model path in the generated command with your mounted ModelSlim checkpoint directory. Include its configuration, tokenizer, quantization metadata, and MTP weights.
 
-Use [W8A8](https://www.modelscope.cn/models/Eco-Tech/GLM-5.3-Flash-w8a8) for A3 and [W8A8_MXFP8](https://www.modelscope.cn/models/Eco-Tech/GLM-5.3-Flash-w8a8-mxfp8) for 950PR/DT series.
+Use [W8A8](https://www.modelscope.cn/models/Eco-Tech/GLM-5.3-Flash-w8a8) for A3 and [W8A8_MXFP8](https://www.modelscope.cn/models/Eco-Tech/GLM-5.3-Flash-w8a8-mxfp8) for 950PR/DT Series.
 
 Replace network placeholders such as `<network-interface>`, `<prefill-head-ip>`, and `<decode-head-ip>` in the generated NPU command with your cluster settings.
 

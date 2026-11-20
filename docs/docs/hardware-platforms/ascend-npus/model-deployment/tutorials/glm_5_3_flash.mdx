@@ -98,7 +98,7 @@ For 950PR/DT series PD disaggregation, choose an image that supports DP attentio
 #   MODEL_DIR: model weights directory on the host
 # ============================================================
 
-IMAGE="swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.1.0-a3-glm5.3-flash"
+IMAGE="swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.1.0-a3-B105"
 NAME=sglang-glm53-flash-a3
 MODEL_DIR=/path/to/model-weights
 
@@ -147,7 +147,7 @@ docker exec -it "$NAME" bash
 #   MODEL_DIR: model weights directory on the host
 # ============================================================
 
-IMAGE="<your 950PR/DT series image>"
+IMAGE="swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.1.0-950-B105"
 NAME=sglang-glm53-flash-950pr-dt-series
 MODEL_DIR=/path/to/model-weights
 

@@ -21,7 +21,6 @@ On the A3 Series, each card has 2 dies, so `--tp-size` is twice the card count; 
 | Qwen3.6-27B | A3 Series Products | 1 | PD Mixed | 64k+1k | 50ms | W8A8 INT8 | [Optimal Configuration](#qwen3-6-27b-w8a8-1p-in64k-out1k-50ms) |
 | Qwen3.6-27B | A3 Series Products | 2 | PD Mixed | 128k+1k | 50ms | W8A8 INT8 | [Optimal Configuration](#qwen3-6-27b-w8a8-2p-in128k-out1k-50ms) |
 | Qwen3.6-27B | A3 Series Products | 2 | PD Mixed | 16k+1k | 50ms | W8A8 INT8 | [Optimal Configuration](#qwen3-6-27b-w8a8-2p-in16k-out1k-50ms) |
-| Qwen3.6-27B | A3 Series Products | 2 | PD Mixed | 64k+1k | 50ms | W8A8 INT8 | [Optimal Configuration](#qwen3-6-27b-w8a8-2p-in64k-out1k-50ms) |
 
 ## Optimal Configuration
 
@@ -74,14 +73,14 @@ export HCCL_OP_EXPANSION_MODE=AIV
 export HCCL_SOCKET_IFNAME=lo
 export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
+export SGLANG_PREFILL_DELAYER_MAX_DELAY_PASSES=300
 export SGLANG_PREFILL_DELAYER_MAX_PREFILL_BS_WINDOW_SIZE=128
+export SGLANG_SCHEDULER_DECREASE_PREFILL_IDLE=1
 export SGLANG_SET_CPU_AFFINITY=1
 export SGLANG_VIT_ENABLE_CUDA_GRAPH=1
 export STREAMS_PER_DEVICE=32
 
 python3 -m sglang.launch_server \
-    --enable-prefill-delayer \
-    --prefill-delayer-max-delay-passes 300 \
     --model-path $MODEL_PATH \
     --host 127.0.0.1 --port 6688 \
     --tp-size 2 \
@@ -172,6 +171,7 @@ export ASCEND_USE_FIA=1
 export GLOO_SOCKET_IFNAME=lo
 export HCCL_OP_EXPANSION_MODE=AIV
 export HCCL_SOCKET_IFNAME=lo
+export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
 export SGLANG_PREFILL_DELAYER_MAX_PREFILL_BS_WINDOW_SIZE=128
 export SGLANG_SET_CPU_AFFINITY=1
@@ -189,10 +189,10 @@ python3 -m sglang.launch_server \
     --max-prefill-tokens 82688 \
     --disable-radix-cache \
     --trust-remote-code \
-    --max-running-requests 38 \
-    --max-mamba-cache-size 38 \
+    --max-running-requests 30 \
+    --max-mamba-cache-size 30 \
     --mem-fraction-static 0.7 \
-    --cuda-graph-bs-decode 1 2 4 8 10 12 16 20 24 28 30 32 35 38 \
+    --cuda-graph-bs-decode 1 2 4 8 10 12 16 20 24 28 30 \
     --enable-prefill-delayer \
     --prefill-delayer-queue-min-ratio 0.45 \
     --prefill-delayer-max-delay-ms 5500 \
@@ -219,9 +219,9 @@ python -m sglang.benchmark.serving \
     --backend sglang-oai-chat \
     --host 127.0.0.1 \
     --port 6688 \
-    --warmup-requests 38 \
-    --max-concurrency 42 \
-    --num-prompts 152 \
+    --warmup-requests 30 \
+    --max-concurrency 34 \
+    --num-prompts 120 \
     --random-input-len 30 \
     --random-output-len 256 \
     --random-range-ratio 1 \
@@ -276,7 +276,6 @@ export HCCL_OP_EXPANSION_MODE=AIV
 export HCCL_SOCKET_IFNAME=lo
 export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
-export SGLANG_ENABLE_SPEC_V2=1
 export SGLANG_SET_CPU_AFFINITY=1
 export STREAMS_PER_DEVICE=32
 
@@ -373,12 +372,12 @@ export HCCL_OP_EXPANSION_MODE=AIV
 export HCCL_SOCKET_IFNAME=lo
 export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=0
+export SGLANG_PREFILL_DELAYER_MAX_DELAY_PASSES=130
+export SGLANG_SCHEDULER_DECREASE_PREFILL_IDLE=1
 export SGLANG_SET_CPU_AFFINITY=1
 export STREAMS_PER_DEVICE=32
 
 python3 -m sglang.launch_server \
-    --enable-prefill-delayer \
-    --prefill-delayer-max-delay-passes 130 \
     --model-path $MODEL_PATH \
     --host 127.0.0.1 --port 6688 \
     --tp-size 2 \
@@ -558,12 +557,12 @@ export HCCL_OP_EXPANSION_MODE=AIV
 export HCCL_SOCKET_IFNAME=lo
 export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
+export SGLANG_PREFILL_DELAYER_MAX_DELAY_PASSES=20
+export SGLANG_SCHEDULER_DECREASE_PREFILL_IDLE=1
 export SGLANG_SET_CPU_AFFINITY=1
 export STREAMS_PER_DEVICE=32
 
 python3 -m sglang.launch_server \
-    --enable-prefill-delayer \
-    --prefill-delayer-max-delay-passes 20 \
     --model-path $MODEL_PATH \
     --host 127.0.0.1 --port 6688 \
     --tp-size 4 \
@@ -650,13 +649,12 @@ export GLOO_SOCKET_IFNAME=lo
 export HCCL_OP_EXPANSION_MODE=AIV
 export HCCL_SOCKET_IFNAME=lo
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
-export SGLANG_ENABLE_SPEC_V2=1
+export SGLANG_PREFILL_DELAYER_MAX_DELAY_PASSES=50
+export SGLANG_SCHEDULER_DECREASE_PREFILL_IDLE=1
 export SGLANG_SET_CPU_AFFINITY=1
 export STREAMS_PER_DEVICE=32
 
 python3 -m sglang.launch_server \
-    --enable-prefill-delayer \
-    --prefill-delayer-max-delay-passes 50 \
     --model-path $MODEL_PATH \
     --host 127.0.0.1 --port 6688 \
     --tp-size 4 \
@@ -696,100 +694,6 @@ python -m sglang.benchmark.serving \
     --warmup-requests 4 \
     --num-prompts 37 \
     --random-input-len 16000 \
-    --random-output-len 1000 \
-    --random-range-ratio 1 \
-    --seed 1
-```
-
-### Qwen3.6-27B W8A8 2P IN64K OUT1K 50ms
-
-**Model**: Qwen3.6-27B
-
-**Hardware**: A3 Series Products
-
-**Cards**: 2
-
-**Deploy Mode**: PD Mixed
-
-**Quantization**: W8A8 INT8
-
-**Dataset**: 64k+1k
-
-**TPOT**: 50ms
-
-#### Model Deployment
-
-```bash Command
-# ============================================================
-# Before running, update the following variables:
-#   MODEL_PATH: path to the model weights directory
-# ============================================================
-
-MODEL_PATH=/path/to/model-weights
-echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
-sysctl -w vm.swappiness=0
-sysctl -w kernel.numa_balancing=0
-sysctl -w kernel.sched_migration_cost_ns=50000
-
-unset https_proxy
-unset http_proxy
-unset HTTPS_PROXY
-unset HTTP_PROXY
-unset ASCEND_LAUNCH_BLOCKING
-
-source /usr/local/Ascend/ascend-toolkit/set_env.sh
-source /usr/local/Ascend/nnal/atb/set_env.sh
-
-export ASCEND_USE_FIA=1
-export GLOO_SOCKET_IFNAME=lo
-export HCCL_OP_EXPANSION_MODE=AIV
-export HCCL_SOCKET_IFNAME=lo
-export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
-export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
-export SGLANG_SET_CPU_AFFINITY=1
-export STREAMS_PER_DEVICE=32
-
-python3 -m sglang.launch_server \
-    --enable-prefill-delayer \
-    --prefill-delayer-max-delay-passes 30 \
-    --model-path $MODEL_PATH \
-    --host 127.0.0.1 --port 6688 \
-    --tp-size 4 \
-    --nnodes 1 \
-    --attention-backend ascend \
-    --device npu \
-    --chunked-prefill-size -1 \
-    --max-prefill-tokens 50000 \
-    --disable-radix-cache \
-    --trust-remote-code \
-    --max-running-requests 28 \
-    --max-mamba-cache-size 50 \
-    --mem-fraction-static 0.7 \
-    --cuda-graph-bs-decode 2 4 6 \
-    --enable-multimodal \
-    --quantization modelslim \
-    --mm-attention-backend ascend_attn \
-    --dtype bfloat16 \
-    --mamba-ssm-dtype bfloat16 \
-    --speculative-algorithm NEXTN \
-    --speculative-num-steps 3 \
-    --speculative-eagle-topk 1 \
-    --speculative-num-draft-tokens 4
-```
-
-#### Benchmark
-
-We tested it based on the `RANDOM` dataset.
-
-```bash Command
-python -m sglang.benchmark.serving \
-    --dataset-name random \
-    --backend sglang \
-    --host 127.0.0.1 \
-    --port 6688 \
-    --max-concurrency 6 \
-    --num-prompts 24 \
-    --random-input-len 64000 \
     --random-output-len 1000 \
     --random-range-ratio 1 \
     --seed 1

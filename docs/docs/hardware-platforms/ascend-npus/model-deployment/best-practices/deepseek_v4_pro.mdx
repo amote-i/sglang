@@ -1,0 +1,175 @@
+---
+title: "DeepSeek-V4-Pro"
+metatags:
+  description: "Best Practice for DeepSeek-V4-Pro on Ascend NPU"
+---
+
+<Note>
+This page focuses on optimal configuration and benchmark results for DeepSeek-V4-Pro on the Ascend NPU.
+
+On the A3 Series, each card has 2 dies, so `--tp-size` is twice the card count; see [Ascend NPU Reference](/docs/hardware-platforms/ascend-npus/reference/glossary#hardware) for details.
+</Note>
+
+### Low Latency
+
+| Model | Hardware | Cards | Deploy Mode | Dataset | TPOT | Quantization | Configuration |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| DeepSeek-V4-Pro | A3 Series Products | 16 | PD Mixed | 128k+1k (90% prefix cache hit rate) | 20ms | W4A8 INT8 | [Optimal Configuration](#deepseek-v4-pro-w4a8-16p-in128k-out1k-prefix90-20ms) |
+
+## Optimal Configuration
+
+<a id="multi-node-pd-mixed" title="Referenced by external docs. Verify before removing."></a>
+
+### DeepSeek-V4-Pro W4A8 16P IN128K OUT1K PREFIX90 20ms
+
+**Model**: DeepSeek-V4-Pro
+
+**Hardware**: A3 Series Products
+
+**Cards**: 16
+
+**Deploy Mode**: PD Mixed
+
+**Quantization**: W4A8 INT8
+
+**Dataset**: 128k+1k (90% prefix cache hit rate)
+
+**TPOT**: 20ms
+
+#### Model Deployment
+
+```bash Command
+# ============================================================
+# Before running, update the following variables:
+#   MODEL_PATH: path to the model weights directory
+#   DRAFT_MODEL_PATH: path to the draft model weights directory
+#   NODE_IPS: IP addresses of each node in the cluster
+#   HCCL_SOCKET_IFNAME: network interface name for HCCL
+#   GLOO_SOCKET_IFNAME: network interface name for Gloo
+# ============================================================
+
+MODEL_PATH=/path/to/model-weights
+DRAFT_MODEL_PATH=/path/to/draft-model-weights
+
+NODE_IPS=('<your node1 ip>' '<your node2 ip>')
+
+echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+sysctl -w vm.swappiness=0
+sysctl -w kernel.numa_balancing=0
+sysctl -w kernel.sched_migration_cost_ns=50000
+
+unset https_proxy
+unset http_proxy
+unset HTTPS_PROXY
+unset HTTP_PROXY
+unset ASCEND_LAUNCH_BLOCKING
+
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+source /usr/local/Ascend/nnal/atb/set_env.sh
+
+export ACL_DEVICE_SYNC_TIMEOUT=60
+export DEEPEP_HCCL_BUFFSIZE=2000
+export DEEPEP_HYBRID_DEPLOYMENT=1
+export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
+export FORCE_DRAFT_MODEL_NON_QUANT=1
+export GLOO_SOCKET_IFNAME=<network-interface>
+export HCCL_CONNECT_TIMEOUT=300
+export HCCL_EXEC_TIMEOUT=300
+export HCCL_OP_EXPANSION_MODE=AIV
+export HCCL_SOCKET_IFNAME=<network-interface>
+export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
+export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=128
+export SGLANG_DSPARK_ENABLE_MULTI_STREAM=0
+export SGLANG_DSPARK_FAST_SAMPLING=0
+export SGLANG_DSPARK_QUANT_AUDIT=1
+export SGLANG_DSPARK_QUANT_AUDIT_STRICT=0
+export SGLANG_DSV4_FP4_EXPERTS=False
+export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
+export SGLANG_ENABLE_SPEC_V2=1
+export SGLANG_NPU_USE_MULTI_STREAM=1
+export SGLANG_OPT_BF16_FP32_GEMM_ALGO=torch
+export SGLANG_OPT_DEEPGEMM_HC_PRENORM=False
+export SGLANG_OPT_FP8_WO_A_GEMM=False
+export SGLANG_OPT_FUSE_WQA_WKV=0
+export SGLANG_OPT_USE_FUSED_HASH_TOPK=False
+export SGLANG_OPT_USE_OVERLAP_STORE_CACHE=False
+export SGLANG_OPT_USE_TILELANG_MHC_POST=False
+export SGLANG_OPT_USE_TILELANG_MHC_PRE=False
+export SGLANG_RAGGED_VERIFY_MODE=static
+export SGLANG_SET_CPU_AFFINITY=1
+export STREAMS_PER_DEVICE=32
+export TRANSFORMERS_VERBOSITY=error
+export TRITON_CACHE_DIR=/tmp/triton_cache
+
+LOCAL_HOST1=`hostname -I|awk -F " " '{print$1}'`
+LOCAL_HOST2=`hostname -I|awk -F " " '{print$2}'`
+echo "${LOCAL_HOST1}"
+echo "${LOCAL_HOST2}"
+
+for i in "${!NODE_IPS[@]}";
+do
+    if [[ "$LOCAL_HOST1" == "${NODE_IPS[$i]}" || "$LOCAL_HOST2" == "${NODE_IPS[$i]}" ]];
+    then
+        echo "${NODE_IPS[$i]}"
+        python3 -m sglang.launch_server \
+        --model-path $MODEL_PATH \
+        --host ${NODE_IPS[$i]} --port 6688 \
+        --nnodes 2 \
+        --dist-init-addr ${NODE_IPS[0]}:5000 \
+        --node-rank $i \
+        --served-model-name dsv4 \
+        --tp-size 32 \
+        --dp-size 8 \
+        --enable-dp-attention \
+        --enable-dp-lm-head \
+        --trust-remote-code \
+        --attention-backend ascend \
+        --device npu \
+        --watchdog-timeout 9000 \
+        --max-running-requests 32 \
+        --mem-fraction-static 0.8 \
+        --quantization modelslim \
+        --chunked-prefill-size 16384 \
+        --prefill-decode-interval 2 \
+        --enable-prefill-delayer \
+        --kv-cache-dtype auto \
+        --moe-dense-tp-size 1 \
+        --cuda-graph-bs-decode 1 2 4 6 8 10 12 14 16 \
+        --load-balance-method round_robin \
+        --moe-a2a-backend deepep \
+        --deepep-mode auto \
+        --enable-metrics \
+        --enable-cache-report \
+        --speculative-algorithm DSPARK \
+        --speculative-draft-model-path $DRAFT_MODEL_PATH \
+        --speculative-draft-model-quantization modelslim \
+        --speculative-draft-attention-backend ascend \
+        --speculative-num-draft-tokens 6 \
+        --speculative-dspark-block-size 5
+        break
+    fi
+done
+```
+
+#### Benchmark
+
+We tested it based on the `generated-shared-prefix` dataset with 90% cache hit (`repeat_rate = 0.9`):
+`--gsp-system-prompt-len 117965` = `round(131072 * 0.9)` is the shared prefix portion.
+`--gsp-question-len 13107` = `round(131072 * (1 - 0.9))` is the unique per-request suffix.
+`--gsp-num-groups 1` keeps all requests in one prefix group for maximum cache reuse.
+
+```bash Command
+python -m sglang.benchmark.serving \
+    --dataset-name generated-shared-prefix \
+    --backend sglang \
+    --host 127.0.0.1 \
+    --port 6688 \
+    --gsp-num-groups 1 \
+    --gsp-prompts-per-group 32 \
+    --gsp-system-prompt-len 117965 \
+    --gsp-question-len 13107 \
+    --gsp-output-len 1024 \
+    --max-concurrency 8 \
+    --num-prompts 32 \
+    --request-rate inf
+```

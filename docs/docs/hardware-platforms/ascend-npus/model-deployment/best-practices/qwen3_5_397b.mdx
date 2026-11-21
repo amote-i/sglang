@@ -79,20 +79,14 @@ export DEEPEP_NORMAL_LONG_SEQ_ROUND=32
 export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
 export GDN_ATTN_BACKEND_TRITON=1
 export GLOO_SOCKET_IFNAME=lo
-export HCCL_BUFFSIZE=0
+export HCCL_BUFFSIZE=2200
 export HCCL_OP_EXPANSION_MODE=AIV
 export HCCL_SOCKET_IFNAME=lo
 export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
 export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=128
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
-export SGLANG_ENABLE_SPEC_V2=1
-export SGLANG_ENABLE_TP_MEMORY_INBALANCE_CHECK=0
 export SGLANG_SET_CPU_AFFINITY=1
-export SGLANG_ZBAL_BOOTSTRAP_URL=tcp://127.0.0.1:24669
-export SGLANG_ZBAL_LOCAL_MEM_SIZE=60672
 export STREAMS_PER_DEVICE=32
-export ZBAL_ENABLE_GRAPH=1
-export ZBAL_NPU_ALLOC_CONF=use_vmm_for_static_memory:True
 
 python3 -m sglang.launch_server \
     --model-path $MODEL_PATH \
@@ -189,20 +183,14 @@ export DEEPEP_NORMAL_LONG_SEQ_ROUND=32
 export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
 export GDN_ATTN_BACKEND_TRITON=1
 export GLOO_SOCKET_IFNAME=lo
-export HCCL_BUFFSIZE=0
+export HCCL_BUFFSIZE=2200
 export HCCL_OP_EXPANSION_MODE=AIV
 export HCCL_SOCKET_IFNAME=lo
 export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
 export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=128
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
-export SGLANG_ENABLE_SPEC_V2=1
-export SGLANG_ENABLE_TP_MEMORY_INBALANCE_CHECK=0
 export SGLANG_SET_CPU_AFFINITY=1
-export SGLANG_ZBAL_BOOTSTRAP_URL=tcp://127.0.0.1:24669
-export SGLANG_ZBAL_LOCAL_MEM_SIZE=60672
 export STREAMS_PER_DEVICE=32
-export ZBAL_ENABLE_GRAPH=1
-export ZBAL_NPU_ALLOC_CONF=use_vmm_for_static_memory:True
 
 python3 -m sglang.launch_server \
     --model-path $MODEL_PATH \
@@ -306,14 +294,8 @@ export HCCL_SOCKET_IFNAME=lo
 export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
 export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=128
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
-export SGLANG_ENABLE_SPEC_V2=1
-export SGLANG_ENABLE_TP_MEMORY_INBALANCE_CHECK=0
 export SGLANG_SET_CPU_AFFINITY=1
-export SGLANG_ZBAL_BOOTSTRAP_URL=tcp://127.0.0.1:24669
-export SGLANG_ZBAL_LOCAL_MEM_SIZE=60672
 export STREAMS_PER_DEVICE=32
-export ZBAL_ENABLE_GRAPH=1
-export ZBAL_NPU_ALLOC_CONF=use_vmm_for_static_memory:True
 
 python3 -m sglang.launch_server \
     --model-path $MODEL_PATH \
@@ -408,25 +390,20 @@ source /usr/local/Ascend/ascend-toolkit/set_env.sh
 source /usr/local/Ascend/nnal/atb/set_env.sh
 
 export ASCEND_USE_FIA=1
+export DEEPEP_NORMAL_COMBINE_ENABLE_LONG_SEQ=1
 export DEEPEP_NORMAL_LONG_SEQ_PER_ROUND_TOKENS=4096
 export DEEPEP_NORMAL_LONG_SEQ_ROUND=20
 export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
 export GDN_ATTN_BACKEND_TRITON=1
 export GLOO_SOCKET_IFNAME=lo
-export HCCL_BUFFSIZE=0
+export HCCL_BUFFSIZE=2200
 export HCCL_OP_EXPANSION_MODE=AIV
 export HCCL_SOCKET_IFNAME=lo
 export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
 export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=128
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
-export SGLANG_ENABLE_SPEC_V2=1
-export SGLANG_ENABLE_TP_MEMORY_INBALANCE_CHECK=0
 export SGLANG_SET_CPU_AFFINITY=1
-export SGLANG_ZBAL_BOOTSTRAP_URL=tcp://127.0.0.1:24669
-export SGLANG_ZBAL_LOCAL_MEM_SIZE=59648
 export STREAMS_PER_DEVICE=32
-export ZBAL_ENABLE_GRAPH=1
-export ZBAL_NPU_ALLOC_CONF=use_vmm_for_static_memory:True
 
 python3 -m sglang.launch_server \
     --model-path $MODEL_PATH \
@@ -450,7 +427,8 @@ python3 -m sglang.launch_server \
     --mm-attention-backend ascend_attn \
     --dtype bfloat16 \
     --mamba-ssm-dtype bfloat16 \
-    --attn-dp-size 4 \
+    --dp-size 4 \
+    --enable-dp-attention \
     --enable-dp-lm-head \
     --speculative-algorithm NEXTN \
     --speculative-num-steps 3 \
@@ -521,25 +499,20 @@ source /usr/local/Ascend/ascend-toolkit/set_env.sh
 source /usr/local/Ascend/nnal/atb/set_env.sh
 
 export ASCEND_USE_FIA=1
+export DEEPEP_NORMAL_COMBINE_ENABLE_LONG_SEQ=1
 export DEEPEP_NORMAL_LONG_SEQ_PER_ROUND_TOKENS=4096
 export DEEPEP_NORMAL_LONG_SEQ_ROUND=20
 export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
 export GDN_ATTN_BACKEND_TRITON=1
 export GLOO_SOCKET_IFNAME=lo
-export HCCL_BUFFSIZE=0
+export HCCL_BUFFSIZE=2200
 export HCCL_OP_EXPANSION_MODE=AIV
 export HCCL_SOCKET_IFNAME=lo
 export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
 export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=128
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
-export SGLANG_ENABLE_SPEC_V2=1
-export SGLANG_ENABLE_TP_MEMORY_INBALANCE_CHECK=0
 export SGLANG_SET_CPU_AFFINITY=1
-export SGLANG_ZBAL_BOOTSTRAP_URL=tcp://127.0.0.1:24669
-export SGLANG_ZBAL_LOCAL_MEM_SIZE=58624
 export STREAMS_PER_DEVICE=32
-export ZBAL_ENABLE_GRAPH=1
-export ZBAL_NPU_ALLOC_CONF=use_vmm_for_static_memory:True
 
 python3 -m sglang.launch_server \
     --model-path $MODEL_PATH \
@@ -563,7 +536,8 @@ python3 -m sglang.launch_server \
     --mm-attention-backend ascend_attn \
     --dtype bfloat16 \
     --mamba-ssm-dtype bfloat16 \
-    --attn-dp-size 4 \
+    --dp-size 4 \
+    --enable-dp-attention \
     --enable-dp-lm-head \
     --speculative-algorithm NEXTN \
     --speculative-num-steps 3 \
@@ -585,8 +559,8 @@ python -m sglang.benchmark.serving \
     --host 127.0.0.1 \
     --port 6688 \
     --warmup-requests 8 \
-    --max-concurrency 132 \
-    --num-prompts 132 \
+    --max-concurrency 120 \
+    --num-prompts 120 \
     --random-input-len 16384 \
     --random-output-len 1024 \
     --random-range-ratio 1 \
@@ -634,25 +608,20 @@ source /usr/local/Ascend/ascend-toolkit/set_env.sh
 source /usr/local/Ascend/nnal/atb/set_env.sh
 
 export ASCEND_USE_FIA=1
+export DEEPEP_NORMAL_COMBINE_ENABLE_LONG_SEQ=1
 export DEEPEP_NORMAL_LONG_SEQ_PER_ROUND_TOKENS=3584
 export DEEPEP_NORMAL_LONG_SEQ_ROUND=6
 export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
 export GDN_ATTN_BACKEND_TRITON=1
 export GLOO_SOCKET_IFNAME=lo
-export HCCL_BUFFSIZE=0
+export HCCL_BUFFSIZE=2200
 export HCCL_OP_EXPANSION_MODE=AIV
 export HCCL_SOCKET_IFNAME=lo
 export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
 export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=128
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
-export SGLANG_ENABLE_SPEC_V2=1
-export SGLANG_ENABLE_TP_MEMORY_INBALANCE_CHECK=0
 export SGLANG_SET_CPU_AFFINITY=1
-export SGLANG_ZBAL_BOOTSTRAP_URL=tcp://127.0.0.1:24669
-export SGLANG_ZBAL_LOCAL_MEM_SIZE=58624
 export STREAMS_PER_DEVICE=32
-export ZBAL_ENABLE_GRAPH=1
-export ZBAL_NPU_ALLOC_CONF=use_vmm_for_static_memory:True
 
 python3 -m sglang.launch_server \
     --model-path $MODEL_PATH \
@@ -675,7 +644,8 @@ python3 -m sglang.launch_server \
     --mm-attention-backend ascend_attn \
     --dtype bfloat16 \
     --mamba-ssm-dtype bfloat16 \
-    --attn-dp-size 8 \
+    --dp-size 8 \
+    --enable-dp-attention \
     --enable-dp-lm-head \
     --speculative-algorithm NEXTN \
     --speculative-num-steps 3 \
@@ -751,20 +721,14 @@ export DEEPEP_NORMAL_LONG_SEQ_ROUND=6
 export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
 export GDN_ATTN_BACKEND_TRITON=1
 export GLOO_SOCKET_IFNAME=lo
-export HCCL_BUFFSIZE=0
+export HCCL_BUFFSIZE=2200
 export HCCL_OP_EXPANSION_MODE=AIV
 export HCCL_SOCKET_IFNAME=lo
 export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
 export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=128
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
-export SGLANG_ENABLE_SPEC_V2=1
-export SGLANG_ENABLE_TP_MEMORY_INBALANCE_CHECK=0
 export SGLANG_SET_CPU_AFFINITY=1
-export SGLANG_ZBAL_BOOTSTRAP_URL=tcp://127.0.0.1:24669
-export SGLANG_ZBAL_LOCAL_MEM_SIZE=59648
 export STREAMS_PER_DEVICE=32
-export ZBAL_ENABLE_GRAPH=1
-export ZBAL_NPU_ALLOC_CONF=use_vmm_for_static_memory:True
 
 python3 -m sglang.launch_server \
     --model-path $MODEL_PATH \
@@ -787,7 +751,8 @@ python3 -m sglang.launch_server \
     --mm-attention-backend ascend_attn \
     --dtype bfloat16 \
     --mamba-ssm-dtype bfloat16 \
-    --attn-dp-size 8 \
+    --dp-size 8 \
+    --enable-dp-attention \
     --enable-dp-lm-head \
     --speculative-algorithm NEXTN \
     --speculative-num-steps 3 \
@@ -863,20 +828,14 @@ export DEEPEP_NORMAL_LONG_SEQ_ROUND=20
 export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
 export GDN_ATTN_BACKEND_TRITON=1
 export GLOO_SOCKET_IFNAME=lo
-export HCCL_BUFFSIZE=0
+export HCCL_BUFFSIZE=2200
 export HCCL_OP_EXPANSION_MODE=AIV
 export HCCL_SOCKET_IFNAME=lo
 export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
 export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=128
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
-export SGLANG_ENABLE_SPEC_V2=1
-export SGLANG_ENABLE_TP_MEMORY_INBALANCE_CHECK=0
 export SGLANG_SET_CPU_AFFINITY=1
-export SGLANG_ZBAL_BOOTSTRAP_URL=tcp://127.0.0.1:24669
-export SGLANG_ZBAL_LOCAL_MEM_SIZE=58672
 export STREAMS_PER_DEVICE=32
-export ZBAL_ENABLE_GRAPH=1
-export ZBAL_NPU_ALLOC_CONF=use_vmm_for_static_memory:True
 
 python3 -m sglang.launch_server \
     --model-path $MODEL_PATH \
@@ -900,7 +859,8 @@ python3 -m sglang.launch_server \
     --mm-attention-backend ascend_attn \
     --dtype bfloat16 \
     --mamba-ssm-dtype bfloat16 \
-    --attn-dp-size 2 \
+    --dp-size 2 \
+    --enable-dp-attention \
     --enable-dp-lm-head \
     --speculative-algorithm NEXTN \
     --speculative-num-steps 3 \
@@ -978,20 +938,14 @@ export DEEPEP_NORMAL_LONG_SEQ_ROUND=20
 export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
 export GDN_ATTN_BACKEND_TRITON=1
 export GLOO_SOCKET_IFNAME=lo
-export HCCL_BUFFSIZE=0
+export HCCL_BUFFSIZE=2200
 export HCCL_OP_EXPANSION_MODE=AIV
 export HCCL_SOCKET_IFNAME=lo
 export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
 export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=128
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
-export SGLANG_ENABLE_SPEC_V2=1
-export SGLANG_ENABLE_TP_MEMORY_INBALANCE_CHECK=0
 export SGLANG_SET_CPU_AFFINITY=1
-export SGLANG_ZBAL_BOOTSTRAP_URL=tcp://127.0.0.1:24669
-export SGLANG_ZBAL_LOCAL_MEM_SIZE=58672
 export STREAMS_PER_DEVICE=32
-export ZBAL_ENABLE_GRAPH=1
-export ZBAL_NPU_ALLOC_CONF=use_vmm_for_static_memory:True
 
 python3 -m sglang.launch_server \
     --model-path $MODEL_PATH \
@@ -1015,7 +969,8 @@ python3 -m sglang.launch_server \
     --mm-attention-backend ascend_attn \
     --dtype bfloat16 \
     --mamba-ssm-dtype bfloat16 \
-    --attn-dp-size 2 \
+    --dp-size 2 \
+    --enable-dp-attention \
     --enable-dp-lm-head \
     --speculative-algorithm NEXTN \
     --speculative-num-steps 3 \
@@ -1099,7 +1054,6 @@ export HCCL_SOCKET_IFNAME=lo
 export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
 export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=128
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
-export SGLANG_ENABLE_SPEC_V2=1
 export SGLANG_SET_CPU_AFFINITY=1
 export STREAMS_PER_DEVICE=32
 
@@ -1124,7 +1078,8 @@ python3 -m sglang.launch_server \
     --mm-attention-backend ascend_attn \
     --dtype bfloat16 \
     --mamba-ssm-dtype bfloat16 \
-    --attn-dp-size 2 \
+    --dp-size 2 \
+    --enable-dp-attention \
     --enable-dp-lm-head \
     --speculative-algorithm NEXTN \
     --speculative-num-steps 3 \

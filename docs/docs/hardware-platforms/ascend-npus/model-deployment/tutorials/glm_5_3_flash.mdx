@@ -181,7 +181,7 @@ Replace `MODEL_PATH` with the checkpoint directory inside the container.
 #   MODEL_PATH: path to the model weights directory
 # ============================================================
 
-MODEL_PATH=/path/to/model-weights
+MODEL_PATH=/path/to/GLM-5.3-Flash-w8a8
 
 source /usr/local/Ascend/cann-9.2.0/opp/vendors/customize/bin/set_env.bash
 source /usr/local/Ascend/nnal/atb/set_env.sh
@@ -212,7 +212,7 @@ python3 -m sglang.launch_server \
     --speculative-eagle-topk 1 \
     --speculative-num-draft-tokens 4 \
     --watchdog-timeout 9000 \
-    --host 127.0.0.1 --port 8810
+    --host 127.0.0.1 --port 6688
 ```
 
   </Tab>
@@ -227,7 +227,7 @@ Replace `MODEL_PATH` with the checkpoint directory inside the container.
 #   MODEL_PATH: path to the model weights directory
 # ============================================================
 
-MODEL_PATH=/path/to/model-weights
+MODEL_PATH=/path/to/GLM-5.3-Flash-w8a8-mxfp8
 
 source /usr/local/Ascend/ascend-toolkit/latest/opp/vendors/customize/bin/set_env.bash
 source /usr/local/Ascend/ascend-toolkit/latest/opp/vendors/custom_transformer/bin/set_env.bash
@@ -261,7 +261,7 @@ python3 -m sglang.launch_server \
     --speculative-num-draft-tokens 5 \
     --watchdog-timeout 1200 \
     --cuda-graph-bs-decode 1 8 64 \
-    --host 127.0.0.1 --port 8810
+    --host 127.0.0.1 --port 6688
 ```
 
   </Tab>
@@ -292,7 +292,7 @@ Run the CPU tuning commands with the required host privileges.
 #   GLOO_SOCKET_IFNAME: network interface name for Gloo
 # ============================================================
 
-MODEL_PATH=/path/to/model-weights
+MODEL_PATH=/path/to/GLM-5.3-Flash-w8a8
 PREFILL_IP="<your prefill ip>"
 DECODE_IP="<your decode ip>"
 
@@ -411,7 +411,7 @@ with four steps and five draft tokens. The nodes must be able to communicate ove
 #   DECODE_IP: decode node IP address
 # ============================================================
 
-MODEL_PATH=/path/to/model-weights
+MODEL_PATH=/path/to/GLM-5.3-Flash-w8a8-mxfp8
 PREFILL_IP="<your prefill ip>"
 DECODE_IP="<your decode ip>"
 
@@ -505,48 +505,73 @@ sgl-router \
 
 ## Functional verification
 
-After the service starts, send a prompt to verify inference. For mixed deployment, run the command inside the
-container with `HOST=127.0.0.1` and `PORT=8810`. For PD disaggregation, use the router IP address and `PORT=8000`.
+The launch command runs the server in the foreground. Loading the weights and capturing graphs takes a few minutes.
+Once the logs print `The server is fired up and ready to roll!`, open another terminal (or another
+`docker exec -it "$NAME" bash` session) and invoke the model:
 
 ```shell
-# ============================================================
-# Before running, update the following variables:
-#   HOST: server or router host address
-#   PORT: 8810 for mixed deployment; 8000 for the router
-# ============================================================
-
-HOST=127.0.0.1
-PORT=8810
-
-curl "http://${HOST}:${PORT}/generate" \
-    -H "Content-Type: application/json" \
-    -d '{
-        "text": "What is the capital of France?",
-        "sampling_params": {
-            "max_new_tokens": 64,
-            "temperature": 0
-        }
-    }'
+curl http://127.0.0.1:6688/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{"role": "user", "content": "What is the capital of France?"}]
+  }'
 ```
 
-Check for an HTTP 200 response with the generated answer. Once the server prints
-`The server is fired up and ready to roll!`, it is ready to accept requests.
-For Health Check, Generate, Chat Completions, and port usage examples, see
-[Testing the Service](/docs/hardware-platforms/ascend-npus/getting-started/installation#testing-the-service).
+Expected result: an HTTP 200 response with the generated text containing "Paris".
+
+<Tip>
+The commands on this page assume the default service address `127.0.0.1:6688` from the single-node launch commands
+above. For PD disaggregation, replace the address with the router host address and port 8000. If you started the
+service with a different `--host` or `--port`, replace the address in these commands accordingly.
+</Tip>
+
+For more testing examples (Health Check, Generate, Chat Completions, and port usage guidance),
+see [Testing the Service](/docs/hardware-platforms/ascend-npus/getting-started/installation#testing-the-service).
 
 ## Accuracy evaluation
+
+A quick accuracy check on GSM8K with `sgl-eval`:
+
+```shell
+# pip install sgl-eval
+
+sgl-eval run gsm8k \
+  --base-url http://127.0.0.1:6688/v1 \
+  --num-examples 10 --max-tokens 2048
+```
+
+If the terminal reports `sgl-eval: command not found`, run `pip install sgl-eval` first and retry.
 
 For evaluation methods and datasets, see
 [Accuracy Evaluation on Ascend NPU](/docs/hardware-platforms/ascend-npus/evaluation/accuracy_evaluation).
 
 ## Performance
 
+The A3 Series configurations enable multimodal serving (`--enable-multimodal`), so the quick benchmark below uses the
+multimodal image dataset. For the text-only 950PR/DT configurations, use `--dataset-name random` and
+`--backend sglang` instead:
+
+```shell
+python -m sglang.benchmark.serving \
+    --dataset-name image \
+    --backend sglang-oai-chat \
+    --model /path/to/GLM-5.3-Flash-w8a8 \
+    --host 127.0.0.1 \
+    --port 6688 \
+    --image-count 2 \
+    --image-resolution 720p \
+    --random-input-len 128 \
+    --random-output-len 1024 \
+    --max-concurrency 8 \
+    --num-prompts 8
+```
+
 For benchmark methods and metric definitions, see
 [Performance Testing on Ascend NPU](/docs/hardware-platforms/ascend-npus/evaluation/performance_testing).
 
 For a generated shared-prefix benchmark workload, use approximately 128K input tokens and 1K output tokens.
-For mixed deployment, use the worker host and port 8810. For PD disaggregation, use the router host and port 8000.
-Set both `--model` and `--tokenizer` to the checkpoint path and use `--served-model-name GLM-5.3-Flash`.
+For single-node deployment, use the service address and port 6688. For PD disaggregation, use the router host and
+port 8000. Set both `--model` and `--tokenizer` to the checkpoint path and use `--served-model-name GLM-5.3-Flash`.
 
 ## Best practices
 

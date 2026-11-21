@@ -99,6 +99,8 @@ docker run -itd --shm-size=16g --name ${NAME} \
 -v /usr/local/Ascend/firmware:/usr/local/Ascend/firmware \
 --entrypoint=bash \
 swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.2.0-a3-B050
+
+docker exec -it ${NAME} bash
 ```
 
 <Tip>
@@ -158,7 +160,7 @@ export DEEPEP_NORMAL_LONG_SEQ_PER_ROUND_TOKENS=1024
 export DEEPEP_NORMAL_COMBINE_ENABLE_LONG_SEQ=1
 export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
 
-MODEL_PATH=/path/to/model-weights
+MODEL_PATH=/path/to/GLM-5.2-w8a8
 
 python3 -m sglang.launch_server \
         --model-path $MODEL_PATH \
@@ -169,7 +171,7 @@ python3 -m sglang.launch_server \
         --trust-remote-code \
         --host 127.0.0.1 \
         --mem-fraction-static 0.7 \
-        --port 8000 \
+        --port 6688 \
         --served-model-name glm-5 \
         --cuda-graph-bs-decode 16 \
         --quantization modelslim \
@@ -221,7 +223,7 @@ export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
 export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=16
 export DEEPEP_HYBRID_DEPLOYMENT=1
 
-MODEL_PATH=/path/to/model-weights
+MODEL_PATH=/path/to/GLM-5.2-w4a8
 
 python3 -m sglang.launch_server \
         --model-path $MODEL_PATH \
@@ -240,7 +242,7 @@ python3 -m sglang.launch_server \
         --moe-a2a-backend deepep --deepep-mode auto \
         --speculative-algorithm NEXTN --speculative-num-steps 3 --speculative-eagle-topk 1 --speculative-num-draft-tokens 4 \
         --load-balance-method round_robin \
-        --host 127.0.0.1 --port 8000
+        --host 127.0.0.1 --port 6688
 ```
 
   </Tab>
@@ -301,7 +303,7 @@ export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
 IPS=('<your node1 ip>' '<your node2 ip>')
 IP_MASTER="${IPS[0]}:5000"
 
-MODEL_PATH=/path/to/model-weights
+MODEL_PATH=/path/to/GLM-5.2-w8a8
 
 LOCAL_HOST1=`hostname -I|awk -F " " '{print$1}'`
 LOCAL_HOST2=`hostname -I|awk -F " " '{print$2}'`
@@ -373,7 +375,7 @@ export SGLANG_DISAGGREGATION_BOOTSTRAP_TIMEOUT=600
 P_IP=('<your prefill ip>')
 D_IP=('<your decode ip>')
 
-MODEL_PATH=/path/to/model-weights
+MODEL_PATH=/path/to/GLM-5.2-w8a8
 
 export TRANSFORMERS_VERBOSITY=error
 
@@ -475,37 +477,62 @@ sgl-router \
 
 ## Functional verification
 
-After the service is started, you can invoke the model by sending a prompt:
+The launch command runs the server in the foreground. Loading the weights and capturing graphs takes a few minutes.
+Once the logs print `The server is fired up and ready to roll!`, open another terminal (or another
+`docker exec -it ${NAME} bash` session) and invoke the model:
 
 ```shell
-# ============================================================
-# Before running, update the following variables:
-#   HOST: the server host address (e.g., localhost)
-#   PORT: the server port number (e.g., 8000)
-# ============================================================
-
-curl http://${HOST}:${PORT}/generate \
-    -H "Content-Type: application/json" \
-    -d '{
-        "text": "What is the capital of France?",
-        "sampling_params": {
-            "max_new_tokens": 64,
-            "temperature": 0
-        }
-    }'
+curl http://127.0.0.1:6688/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{"role": "user", "content": "What is the capital of France?"}]
+  }'
 ```
 
 Expected result: an HTTP 200 response with the generated text containing "Paris".
 
-Once the server prints `The server is fired up and ready to roll!` in the logs, it is ready to accept requests. For more
-testing examples (Health Check, Generate, Chat Completions, and port usage guidance),
+<Tip>
+The commands on this page assume the default single-node service address `127.0.0.1:6688` from the launch command above.
+If you started the service with a different `--host` or `--port`, replace the address in these commands accordingly.
+The multi-node and PD disaggregation deployments use their own addresses and ports; see those sections.
+</Tip>
+
+For more testing examples (Health Check, Generate, Chat Completions, and port usage guidance),
 see [Testing the Service](/docs/hardware-platforms/ascend-npus/getting-started/installation#testing-the-service).
 
 ## Accuracy evaluation
 
+A quick accuracy check on GSM8K with `sgl-eval`:
+
+```shell
+# pip install sgl-eval
+
+sgl-eval run gsm8k \
+  --base-url http://127.0.0.1:6688/v1 \
+  --num-examples 10 --max-tokens 2048
+```
+
+If the terminal reports `sgl-eval: command not found`, run `pip install sgl-eval` first and retry.
+
 For accuracy evaluation methods and datasets, see [Accuracy Evaluation on Ascend NPU](/docs/hardware-platforms/ascend-npus/evaluation/accuracy_evaluation).
 
 ## Performance
+
+A quick performance benchmark with random input/output lengths:
+
+```shell
+python -m sglang.benchmark.serving \
+    --dataset-name random \
+    --backend sglang \
+    --host 127.0.0.1 \
+    --port 6688 \
+    --max-concurrency 64 \
+    --num-prompts 64 \
+    --random-input-len 1000 \
+    --random-output-len 100 \
+    --random-range-ratio 1 \
+    --seed 1
+```
 
 For performance data and benchmark commands, see [Performance Testing on Ascend NPU](/docs/hardware-platforms/ascend-npus/evaluation/performance_testing).
 

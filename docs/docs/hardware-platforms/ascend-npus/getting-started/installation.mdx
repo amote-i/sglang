@@ -330,7 +330,12 @@ pip install -e python[all_npu]
 
 #### Install Ascend Docker Runtime
 
-The container commands in this documentation rely on [Ascend Docker Runtime](https://www.hiascend.com/document/detail/en/mindcluster/latest/) on the host. It is a container runtime plugin (an OCI prestart hook) that reads the `ASCEND_VISIBLE_DEVICES` environment variable passed to `docker run`: it binds the selected NPU device nodes (including `/dev/davinci_manager` and `/dev/hisi_hdc`) into the container and mounts the host driver dependencies the NPU stack needs. Without the runtime, `ASCEND_VISIBLE_DEVICES` is ignored and none of this is mounted automatically.
+The container commands in this documentation rely on
+[Ascend Docker Runtime](https://www.hiascend.com/document/detail/en/mindcluster/latest/) on the host.
+It is a container runtime plugin (an OCI prestart hook) that reads the `ASCEND_VISIBLE_DEVICES` environment variable
+passed to `docker run`: it binds the selected NPU device nodes (including `/dev/davinci_manager` and `/dev/hisi_hdc`)
+into the container and mounts the host driver dependencies the NPU stack needs. Without the runtime,
+`ASCEND_VISIBLE_DEVICES` is ignored and none of this is mounted automatically.
 
 Install it once per host as `root` (skip this step if the host already has it). Download the `.run` package from the [MindCluster documentation](https://www.hiascend.com/document/detail/en/mindcluster/latest/), then:
 
@@ -354,7 +359,8 @@ docker info --format 'default={{.DefaultRuntime}}'
 
 The output must be `default=ascend`. If it prints `default=runc`:
 
-1. If the `Runtimes:` line of `docker info` lists `ascend`, either pass `--runtime ascend` to every `docker run`, or set `"default-runtime": "ascend"` in `/etc/docker/daemon.json` and restart Docker.
+1. If the `Runtimes:` line of `docker info` lists `ascend`, either pass `--runtime ascend` to every `docker run`,
+or set `"default-runtime": "ascend"` in `/etc/docker/daemon.json` and restart Docker.
 2. If `ascend` is missing from `Runtimes:`, rerun the installation above and restart Docker.
 
 **What the runtime handles and what stays in the command:**
@@ -365,10 +371,15 @@ The output must be `default=ascend`. If it prints `default=runc`:
 | Driver libraries (`/usr/local/Ascend/driver/lib64`, `/usr/local/Ascend/driver/include`) | The device ids in `ASCEND_VISIBLE_DEVICES`: `0-15` for a full A3 Series node (ids are DIE-level, see the [glossary](/docs/hardware-platforms/ascend-npus/reference/glossary#hardware)), `0-7` for a full 950PR/DT Series node |
 | `/usr/local/dcmi`, `/usr/local/bin/npu-smi`, `/var/queue_schedule` | Extra mounts such as `/usr/local/Ascend/driver`, `/usr/local/Ascend/firmware`, `/etc/ascend_install.info`, `/usr/local/sbin`, model weights, and the HF cache |
 
-`ASCEND_VISIBLE_DEVICES` accepts a single id (`0`), a comma-separated list (`0,1`), an inclusive range (`0-15`), a mixed form (`0-3,7`), and `void` for a container without any NPU.
+`ASCEND_VISIBLE_DEVICES` accepts a single id (`0`), a comma-separated list (`0,1`), an inclusive range (`0-15`),
+a mixed form (`0-3,7`), and `void` for a container without any NPU.
 
 <Note>
-The runtime can mount extra host paths into every container through `ASCEND_RUNTIME_MOUNTS`. Its value **replaces** the default `base` list, so a custom value must list `base` explicitly, for example `-e ASCEND_RUNTIME_MOUNTS=base,hostextra` with one host path per line in the corresponding `.list` file under `/etc/ascend-docker-runtime.d/`. The value is limited to 128 characters and each list file to 128 entries. Do not edit `base.list` by hand.
+The runtime can mount extra host paths into every container through `ASCEND_RUNTIME_MOUNTS`. Its value **replaces**
+the default `base` list, so a custom value must list `base` explicitly, for example
+`-e ASCEND_RUNTIME_MOUNTS=base,hostextra` with one host path per line in the corresponding `.list` file under
+`/etc/ascend-docker-runtime.d/`. The value is limited to 128 characters and each list file to 128 entries. Do not
+edit `base.list` by hand.
 </Note>
 
 If the runtime cannot be installed on the host (for example, no `root` access), containers can still be started with explicit `--device` and `--volume` flags — see
@@ -385,9 +396,15 @@ Ensure sufficient disk space before pulling images. Each Docker image requires a
 1. Download SGLang image
 
 <Tip>
-We publish both **stable releases** and **daily builds**. Choose a stable release tag if you prefer a validated version, or a daily build tag if you need the latest development changes. CANN 9.2.0 has no daily builds published yet, so daily-build tags are currently available only for CANN 9.1.0 (e.g., `main-cann9.1.0-a3`, `main-cann9.1.0-950`).
+We publish both **stable releases** and **daily builds**. Choose a stable release tag if you prefer a validated
+version, or a daily build tag if you need the latest development changes. CANN 9.2.0 has no daily builds published
+yet, so daily-build tags are currently available only for CANN 9.1.0 (e.g., `main-cann9.1.0-a3`, `main-cann9.1.0-950`).
 
-CANN 9.2.0 has no stable release yet, so use a validated build for now. The `cann9.2.0-<device>-B<NN>` tags (e.g., `cann9.2.0-a3-B050`, `cann9.2.0-950-B050`) are validated builds rather than stable releases; they stand in until a stable release is published. The exact component versions inside each build are listed in the [image dependency manifest](https://ascend.github.io/sglang/) — see for example the `cann9.2.0-950-B050` entry for the 950PR/DT Series.
+CANN 9.2.0 has no stable release yet, so use a validated build for now. The `cann9.2.0-<device>-B<NN>` tags (e.g.,
+`cann9.2.0-a3-B050`, `cann9.2.0-950-B050`) are validated builds rather than stable releases; they stand in until a
+stable release is published. The exact component versions inside each build are listed in the
+[image dependency manifest](https://ascend.github.io/sglang/) — see for example the `cann9.2.0-950-B050` entry for
+the 950PR/DT Series.
 
 {/* TODO: Interim explanation (CANN 9.2.0 has no stable release yet). Remove it and switch the tags below to the stable release once it is published. */}
 </Tip>

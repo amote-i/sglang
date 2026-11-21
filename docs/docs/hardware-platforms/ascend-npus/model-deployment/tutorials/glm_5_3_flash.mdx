@@ -83,11 +83,8 @@ For the PD disaggregation configuration reference, see [Best practices](#best-pr
 Reserve enough disk space for both the container image and model weights before pulling the image.
 </Warning>
 
-Both **stable releases** and **daily builds** are available. CANN 9.1.0 has no stable release yet, so the following
-commands use the validated build tags `cann9.1.0-a3-B105` (A3 Series) and `cann9.1.0-950-B105` (950PR/DT Series).
+Both **stable releases** and **daily builds** are available.
 For details, see [Docker image versions](/docs/hardware-platforms/ascend-npus/faq#8-docker-image-versions-stable-release-vs-daily-build).
-
-{/* TODO: Interim explanation (CANN 9.1.0 has no stable release yet). Remove it and switch the tags below to the stable release once it is published. */}
 
 Select the tab for your target platform, then set `NAME` and `MODEL_DIR` (keep the pre-set `IMAGE` unless you need a
 different one) and start the container. The commands require
@@ -105,7 +102,7 @@ on the host; each selects all NPUs of the node with `ASCEND_VISIBLE_DEVICES`.
 #   MODEL_DIR: model weights directory on the host
 # ============================================================
 
-IMAGE="swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.1.0-a3-B105"
+IMAGE="swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.2.0-a3-B050"
 NAME=sglang-glm53-flash-a3
 MODEL_DIR=/path/to/model-weights
 
@@ -136,7 +133,7 @@ docker exec -it "$NAME" bash
 #   MODEL_DIR: model weights directory on the host
 # ============================================================
 
-IMAGE="swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.1.0-950-B105"
+IMAGE="swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.2.0-950-B050"
 NAME=sglang-glm53-flash-950pr-dt-series
 MODEL_DIR=/path/to/model-weights
 
@@ -186,7 +183,7 @@ Replace `MODEL_PATH` with the checkpoint directory inside the container.
 
 MODEL_PATH=/path/to/model-weights
 
-source /usr/local/Ascend/cann-9.1.0/opp/vendors/customize/bin/set_env.bash
+source /usr/local/Ascend/cann-9.2.0/opp/vendors/customize/bin/set_env.bash
 source /usr/local/Ascend/nnal/atb/set_env.sh
 
 export HCCL_BUFFSIZE=1536

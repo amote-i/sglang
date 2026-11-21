@@ -109,6 +109,8 @@ docker run -itd --shm-size=16g --name ${NAME} \
 -v /usr/local/Ascend/firmware:/usr/local/Ascend/firmware \
 --entrypoint=bash \
 quay.io/ascend/sglang:v0.5.18-cann9.0.0-a3
+
+docker exec -it ${NAME} bash
 ```
 
 <Tip>
@@ -133,8 +135,8 @@ is the only single-node configuration.
 #   DRAFT_MODEL_PATH: path to the draft model weights directory
 # ============================================================
 
-MODEL_PATH=/path/to/model-weights
-DRAFT_MODEL_PATH=/path/to/draft-model-weights
+MODEL_PATH=/path/to/Qwen3-235B-A22B-Instruct-2507
+DRAFT_MODEL_PATH=/path/to/Qwen3-235B-A22B-Eagle3
 
 source /usr/local/Ascend/ascend-toolkit/set_env.sh
 source /usr/local/Ascend/nnal/atb/set_env.sh
@@ -143,7 +145,7 @@ export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
 
 python3 -m sglang.launch_server \
     --model-path $MODEL_PATH \
-    --host 127.0.0.1 --port 6689 \
+    --host 127.0.0.1 --port 6688 \
     --trust-remote-code \
     --attention-backend ascend \
     --device npu \
@@ -188,7 +190,7 @@ export ASCEND_MF_STORE_URL="tcp://<PREFILL_HOST_IP>:12345"
 export HCCL_SOCKET_IFNAME=<network-interface>
 export GLOO_SOCKET_IFNAME=<network-interface>
 
-MODEL_PATH=/path/to/model-weights
+MODEL_PATH=/path/to/Qwen3-235B-A22B-W8A8
 ```
 
 2. Run on the **prefill node**:
@@ -270,11 +272,11 @@ python3 -m sglang.launch_server \
 #   PREFILL_HOST_IP: prefill node IP address
 #   DECODE_HOST_IP: decode node IP address
 #   ROUTER_HOST_IP: router node IP address
-#   /path/to/model-weights: the MODEL_PATH the workers were launched with
+#   /path/to/Qwen3-235B-A22B-W8A8: the MODEL_PATH the workers were launched with
 #============================================================
 
 sgl-router \
-    --model-id /path/to/model-weights \
+    --model-id /path/to/Qwen3-235B-A22B-W8A8 \
     --no-tokenizer \
     --worker-urls http://<PREFILL_HOST_IP>:8000 http://<DECODE_HOST_IP>:8232 \
     --host <ROUTER_HOST_IP> \
@@ -389,11 +391,11 @@ python3 -m sglang.launch_server \
 #   PREFILL_HOST_IP: prefill node IP address
 #   DECODE_HOST_IP: decode node IP address
 #   ROUTER_HOST_IP: router node IP address
-#   /path/to/model-weights: the MODEL_PATH the workers were launched with
+#   /path/to/Qwen3-235B-A22B-W8A8: the MODEL_PATH the workers were launched with
 #============================================================
 
 sgl-router \
-    --model-id /path/to/model-weights \
+    --model-id /path/to/Qwen3-235B-A22B-W8A8 \
     --no-tokenizer \
     --worker-urls http://<PREFILL_HOST_IP>:8000 http://<DECODE_HOST_IP>:8001 \
     --host <ROUTER_HOST_IP> \
@@ -409,37 +411,61 @@ PCP is a prefill-only feature; the decode side needs no CP-related flags.
 
 ## Functional verification
 
-After the service is started, you can invoke the model by sending a prompt:
+The launch command runs the server in the foreground. Loading the weights and capturing graphs takes a few minutes.
+Once the logs print `The server is fired up and ready to roll!`, open another terminal (or another
+`docker exec -it ${NAME} bash` session) and invoke the model:
 
 ```shell
-# ============================================================
-# Before running, update the following variables:
-#   HOST: the server host address (e.g., localhost)
-#   PORT: the server port number (e.g., 6689)
-# ============================================================
-
-curl http://${HOST}:${PORT}/generate \
-    -H "Content-Type: application/json" \
-    -d '{
-        "text": "What is the capital of France?",
-        "sampling_params": {
-            "max_new_tokens": 64,
-            "temperature": 0
-        }
-    }'
+curl http://127.0.0.1:6688/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{"role": "user", "content": "What is the capital of France?"}]
+  }'
 ```
 
 Expected result: an HTTP 200 response with the generated text containing "Paris".
 
-Once the server prints `The server is fired up and ready to roll!` in the logs, it is ready to accept requests. For more
-testing examples (Health Check, Generate, Chat Completions, and port usage guidance),
+<Tip>
+The commands on this page assume the single-node service address `127.0.0.1:6688` from the launch command above. If you
+started the service with a different `--host` or `--port`, replace the address in these commands accordingly.
+</Tip>
+
+For more testing examples (Health Check, Generate, Chat Completions, and port usage guidance),
 see [Testing the Service](/docs/hardware-platforms/ascend-npus/getting-started/installation#testing-the-service).
 
 ## Accuracy evaluation
 
+A quick accuracy check on GSM8K with `sgl-eval`:
+
+```shell
+# pip install sgl-eval
+
+sgl-eval run gsm8k \
+  --base-url http://127.0.0.1:6688/v1 \
+  --num-examples 10 --max-tokens 2048
+```
+
+If the terminal reports `sgl-eval: command not found`, run `pip install sgl-eval` first and retry.
+
 For accuracy evaluation methods and datasets, see [Accuracy Evaluation on Ascend NPU](/docs/hardware-platforms/ascend-npus/evaluation/accuracy_evaluation).
 
 ## Performance
+
+A quick performance benchmark with random input/output lengths:
+
+```shell
+python -m sglang.benchmark.serving \
+    --dataset-name random \
+    --backend sglang \
+    --host 127.0.0.1 \
+    --port 6688 \
+    --max-concurrency 64 \
+    --num-prompts 64 \
+    --random-input-len 1000 \
+    --random-output-len 100 \
+    --random-range-ratio 1 \
+    --seed 1
+```
 
 For performance data and benchmark commands, see [Performance Testing on Ascend NPU](/docs/hardware-platforms/ascend-npus/evaluation/performance_testing).
 

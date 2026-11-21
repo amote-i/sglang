@@ -109,6 +109,8 @@ docker run -itd --shm-size=16g --name ${NAME} \
 -v /usr/local/Ascend/firmware:/usr/local/Ascend/firmware \
 --entrypoint=bash \
 quay.io/ascend/sglang:v0.5.18-cann9.0.0-a3
+
+docker exec -it ${NAME} bash
 ```
 
 <Tip>
@@ -132,8 +134,8 @@ quantized checkpoint is recommended over the 595.21GB BF16 checkpoint for reduce
 #   DRAFT_MODEL_PATH: path to the draft model weights directory
 # ============================================================
 
-MODEL_PATH=/path/to/model-weights
-DRAFT_MODEL_PATH=/path/to/draft-model-weights
+MODEL_PATH=/path/to/Kimi-K2.6-w4a8
+DRAFT_MODEL_PATH=/path/to/kimi-k2.6-eagle3
 
 source /usr/local/Ascend/ascend-toolkit/set_env.sh
 source /usr/local/Ascend/nnal/atb/set_env.sh
@@ -145,7 +147,7 @@ export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
 
 python3 -m sglang.launch_server \
     --model-path $MODEL_PATH \
-    --host 127.0.0.1 --port 6689 \
+    --host 127.0.0.1 --port 6688 \
     --trust-remote-code \
     --attention-backend ascend \
     --device npu \
@@ -190,65 +192,85 @@ deployment commands and benchmark data, see
 
 ## Functional verification
 
-After the service is started, you can invoke the model by sending a prompt:
+The launch command runs the server in the foreground. Loading the weights and capturing graphs takes a few minutes.
+Once the logs print `The server is fired up and ready to roll!`, open another terminal (or another
+`docker exec -it ${NAME} bash` session) and invoke the model:
 
 ```shell
-# ============================================================
-# Before running, update the following variables:
-#   HOST: the server host address (e.g., localhost)
-#   PORT: the server port number (e.g., 6689)
-# ============================================================
-
-curl http://${HOST}:${PORT}/generate \
-    -H "Content-Type: application/json" \
-    -d '{
-        "text": "What is the capital of France?",
-        "sampling_params": {
-            "max_new_tokens": 64,
-            "temperature": 0
-        }
-    }'
+curl http://127.0.0.1:6688/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{"role": "user", "content": "What is the capital of France?"}]
+  }'
 ```
 
 Expected result: an HTTP 200 response with the generated text containing "Paris".
+
+<Tip>
+The commands on this page assume the default service address `127.0.0.1:6688` from the single-node launch command above.
+If you start the service with a different `--host` or `--port` (for example, in the multi-node deployment modes),
+replace the address in these commands accordingly.
+</Tip>
 
 For multimodal requests (text + image). The example image URL is fetched by the server at request time, so the server
 needs internet access; otherwise, replace it with a local image path or any URL reachable from the server:
 
 ```shell
-# ============================================================
-# Before running, update the following variables:
-#   HOST: the server host address (e.g., localhost)
-#   PORT: the server port number (e.g., 6689)
-# ============================================================
-
-curl http://${HOST}:${PORT}/v1/chat/completions \
-    -H "Content-Type: application/json" \
-    -d '{
-        "model": "Kimi-K2.6-w4a8",
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "image_url", "image_url": {"url": "https://raw.githubusercontent.com/sgl-project/sglang/main/examples/assets/example_image.png"}},
-                    {"type": "text", "text": "Describe this image."}
-                ]
-            }
+curl http://127.0.0.1:6688/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "Kimi-K2.6-w4a8",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {"type": "image_url", "image_url": {"url": "https://raw.githubusercontent.com/sgl-project/sglang/main/examples/assets/example_image.png"}},
+          {"type": "text", "text": "Describe this image."}
         ]
-    }'
+      }
+    ]
+  }'
 ```
 
 Expected result: an HTTP 200 response with a description of the image.
 
-Once the server prints `The server is fired up and ready to roll!` in the logs, it is ready to accept requests. For more
-testing examples (Health Check, Generate, Chat Completions, and port usage guidance),
+For more testing examples (Health Check, Generate, Chat Completions, and port usage guidance),
 see [Testing the Service](/docs/hardware-platforms/ascend-npus/getting-started/installation#testing-the-service).
 
 ## Accuracy evaluation
 
+A quick accuracy check on GSM8K with `sgl-eval`:
+
+```shell
+# pip install sgl-eval
+
+sgl-eval run gsm8k \
+  --base-url http://127.0.0.1:6688/v1 \
+  --num-examples 10 --max-tokens 2048
+```
+
+If the terminal reports `sgl-eval: command not found`, run `pip install sgl-eval` first and retry.
+
 For accuracy evaluation methods and datasets, see [Accuracy Evaluation on Ascend NPU](/docs/hardware-platforms/ascend-npus/evaluation/accuracy_evaluation).
 
 ## Performance
+
+The service is multimodal (`--enable-multimodal`), so the benchmark uses the multimodal image dataset:
+
+```shell
+python -m sglang.benchmark.serving \
+    --dataset-name image \
+    --backend sglang-oai-chat \
+    --model /path/to/Kimi-K2.6-w4a8 \
+    --host 127.0.0.1 \
+    --port 6688 \
+    --image-count 2 \
+    --image-resolution 720p \
+    --random-input-len 128 \
+    --random-output-len 1024 \
+    --max-concurrency 8 \
+    --num-prompts 8
+```
 
 For performance data and benchmark commands, see [Performance Testing on Ascend NPU](/docs/hardware-platforms/ascend-npus/evaluation/performance_testing).
 

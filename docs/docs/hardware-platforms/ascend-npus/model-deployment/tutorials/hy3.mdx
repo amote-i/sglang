@@ -86,9 +86,16 @@ For details, see
 The command requires [Ascend Docker Runtime](/docs/hardware-platforms/ascend-npus/getting-started/installation#install-ascend-docker-runtime) on the host; it selects all NPUs of the node with `ASCEND_VISIBLE_DEVICES`.
 
 ```bash Command
+# ============================================================
+# Before running, update the following variables:
+#   NAME: container name
+# ============================================================
+
+NAME=sglang-hy3
+
 docker pull swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.2.0-a3-B050
 
-docker run -itd --shm-size=64g --name ${NAME} \
+docker run -itd --shm-size=64g --name "$NAME" \
 --privileged=true --net=host \
 -e ASCEND_VISIBLE_DEVICES=0-15 \
 -v /etc/ascend_install.info:/etc/ascend_install.info \
@@ -98,13 +105,13 @@ docker run -itd --shm-size=64g --name ${NAME} \
 --entrypoint=bash \
 swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.2.0-a3-B050
 
-docker exec -it ${NAME} bash
+docker exec -it "$NAME" bash
 ```
 
 <Tip>
 - If the model weights have already been downloaded to a shared directory, use `-v` to mount the model path into the
   container, for example: `-v /path/to/models:/models`.
-- Replace `${NAME}` with your own container name or remove `--name` to use default name.
+- Set `NAME` at the top of the script to your own container name.
 - `--shm-size=64g` is recommended for 16-NPU deployments with large batch sizes.
 </Tip>
 
@@ -145,6 +152,11 @@ export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
 Launch the server:
 
 ```bash
+# ============================================================
+# Before running, update the following variables:
+#   MODEL_PATH: path to the model weights directory
+# ============================================================
+
 MODEL_PATH="/path/to/Hy3"
 
 python3 -m sglang.launch_server \

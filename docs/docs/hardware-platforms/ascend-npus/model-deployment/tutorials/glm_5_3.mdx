@@ -93,9 +93,16 @@ For details, see [Docker image versions](/docs/hardware-platforms/ascend-npus/fa
 The command requires [Ascend Docker Runtime](/docs/hardware-platforms/ascend-npus/getting-started/installation#install-ascend-docker-runtime) on the host; it selects all NPUs of the node with `ASCEND_VISIBLE_DEVICES`.
 
 ```bash Command
+# ============================================================
+# Before running, update the following variables:
+#   NAME: container name
+# ============================================================
+
+NAME=sglang-glm-5-3
+
 docker pull swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.2.0-a3-B050
 
-docker run -itd --shm-size=16g --name ${NAME} \
+docker run -itd --shm-size=16g --name "$NAME" \
 --privileged=true --net=host \
 -e ASCEND_VISIBLE_DEVICES=0-15 \
 -v /etc/ascend_install.info:/etc/ascend_install.info \
@@ -105,13 +112,13 @@ docker run -itd --shm-size=16g --name ${NAME} \
 --entrypoint=bash \
 swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.2.0-a3-B050
 
-docker exec -it ${NAME} bash
+docker exec -it "$NAME" bash
 ```
 
 <Tip>
 - If the model weights have already been downloaded to a shared directory, use `-v` to mount the model path into the
   container, for example: `-v /path/to/models:/models`.
-- Replace `${NAME}` with your container name or remove `--name` to use the default name.
+- Set `NAME` at the top of the script to your own container name.
 </Tip>
 
 ## Online service deployment
@@ -124,7 +131,14 @@ The following single-node example is adapted from the GLM-5.2 tutorial and is pr
 ```shell
 #!/usr/bin/env bash
 # Reference only: adapted from the GLM-5.2 tutorial; not yet verified for GLM-5.3.
-# Update MODEL_PATH, SGLANG_ROOT, and the installed custom-op paths as required.
+
+# ============================================================
+# Before running, update the following variables:
+#   MODEL_PATH: GLM-5.3 W8A8 weight directory
+#   SGLANG_ROOT: compatible SGLang source checkout
+# Ensure CANN 9.2.0 custom ops are installed; update the sourced custom-op paths if your install differs.
+# ============================================================
+
 MODEL_PATH='/path/to/GLM-5.3-w8a8'
 SGLANG_ROOT='/path/to/sglang'
 
@@ -185,6 +199,7 @@ initialization address. In this script, the mixed-serving HTTP port is **6688** 
 #   MODEL_PATH: GLM-5.3 W8A8 weight directory
 #   SGLANG_ROOT: compatible SGLang source checkout
 # ============================================================
+
 IPS=('<node-0-ip>' '<node-1-ip>')
 NIC='<network-interface>'
 MODEL_PATH='/path/to/GLM-5.3-w8a8'
@@ -292,6 +307,7 @@ bootstrap and should be started before the router.
 #   SGLANG_ROOT: SGLang source directory
 # Ensure MemFabric, ATB, and CANN 9.2.0 custom ops are installed.
 # ============================================================
+
 P_IP=('<prefill-node-0-ip>' '<prefill-node-1-ip>')
 D_IP=('<decode-node-0-ip>' '<decode-node-1-ip>')
 NIC='<network-interface>'
@@ -340,7 +356,6 @@ for i in "${!P_IP[@]}"; do
         export DEEPEP_NORMAL_COMBINE_ENABLE_LONG_SEQ=1
         export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
         export TASK_QUEUE_ENABLE=2
-        export ENABLE_PROFILING=0
         export SGLANG_PP_LAYER_PARTITION=18,20,24,16
 
         exec python3 -m sglang.launch_server \
@@ -419,6 +434,7 @@ GLM-5.2 document's PD routing syntax and uses the prefill/decode group master ad
 #   D_MASTER_IP: first decode node IP (decode rank 0)
 #   ROUTER_HOST_IP: router listening IP
 # ============================================================
+
 P_MASTER_IP="<prefill-node-0-ip>"
 D_MASTER_IP="<decode-node-0-ip>"
 ROUTER_HOST_IP="<router-host-ip>"

@@ -234,7 +234,6 @@ source /usr/local/Ascend/ascend-toolkit/latest/opp/vendors/custom_transformer/bi
 source /usr/local/Ascend/ascend-toolkit/set_env.sh
 source /usr/local/memfabric_hybrid/set_env.sh
 
-export SGLANG_NPU_PROFILING=0
 export ASCEND_LAUNCH_BLOCKING=1
 export HCCL_BUFFSIZE=256
 
@@ -419,7 +418,6 @@ source /usr/local/Ascend/ascend-toolkit/set_env.sh
 source /usr/local/Ascend/ascend-toolkit/latest/opp/vendors/customize/bin/set_env.bash
 source /usr/local/Ascend/ascend-toolkit/latest/opp/vendors/custom_transformer/bin/set_env.bash
 
-export SGLANG_NPU_PROFILING=0
 export HCCL_BUFFSIZE=256
 export ASCEND_MF_STORE_URL="tcp://${PREFILL_IP}:24670"
 export ASCEND_MF_TRANSFER_PROTOCOL=device_urma
@@ -552,10 +550,17 @@ multimodal image dataset. For the text-only 950PR/DT configurations, use `--data
 `--backend sglang` instead:
 
 ```shell
+# ============================================================
+# Before running, update the following variables:
+#   MODEL_PATH: local path to the model weights (tokenizer source for the benchmark)
+# ============================================================
+
+MODEL_PATH=/path/to/GLM-5.3-Flash-w8a8
+
 python -m sglang.benchmark.serving \
     --dataset-name image \
     --backend sglang-oai-chat \
-    --model /path/to/GLM-5.3-Flash-w8a8 \
+    --model "${MODEL_PATH}" \
     --host 127.0.0.1 \
     --port 6688 \
     --image-count 2 \

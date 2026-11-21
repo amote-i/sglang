@@ -315,15 +315,24 @@ The container commands in this documentation select NPUs with `ASCEND_VISIBLE_DE
 [Ascend Docker Runtime](/docs/hardware-platforms/ascend-npus/getting-started/installation#install-ascend-docker-runtime)
 on the host. If the runtime cannot be installed (for example, no `root` access or the Docker daemon configuration is
 restricted), pass the device nodes and driver mounts explicitly instead. The commands below are equivalent to the
-runtime form: replace `<image_name>` with your image, keep any model-weights or cache mounts from the original command,
-and drop `-e ASCEND_VISIBLE_DEVICES=...`.
+runtime form: set `NAME` and `IMAGE` in the script header to your own container name and image, keep any
+model-weights or cache mounts from the original command, and drop `-e ASCEND_VISIBLE_DEVICES=...`.
 
 <Tabs>
   <Tab title="A3 Series">
 
 ```bash Command
+# ============================================================
+# Before running, update the following variables:
+#   NAME: container name
+#   IMAGE: SGLang container image
+# ============================================================
+
+NAME=sglang
+IMAGE=quay.io/ascend/sglang:v0.5.18-cann9.0.0-a3
+
 # A full A3 Series node exposes /dev/davinci0 through /dev/davinci15 (ids are DIE-level)
-docker run -itd --shm-size=16g --name ${NAME} \
+docker run -itd --shm-size=16g --name "$NAME" \
 --privileged=true --net=host \
 -v /var/queue_schedule:/var/queue_schedule \
 -v /etc/ascend_install.info:/etc/ascend_install.info \
@@ -349,16 +358,26 @@ docker run -itd --shm-size=16g --name ${NAME} \
 --device=/dev/davinci_manager:/dev/davinci_manager \
 --device=/dev/hisi_hdc:/dev/hisi_hdc \
 --entrypoint=bash \
-<image_name>
+"$IMAGE"
 ```
 
   </Tab>
   <Tab title="950PR/DT Series">
 
 ```bash Command
+# ============================================================
+# Before running, update the following variables:
+#   NAME: container name
+#   IMAGE: SGLang container image
+# ============================================================
+
+NAME=sglang
+IMAGE=swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.2.0-950-B050
+
 # A full 950PR/DT Series node exposes /dev/davinci0 through /dev/davinci7
-docker run -itd --shm-size=16g --name ${NAME} \
+docker run -itd --shm-size=16g --name "$NAME" \
 --privileged=true --net=host \
+-e ASCEND_USE_FIA=1 \
 -v /var/queue_schedule:/var/queue_schedule \
 -v /etc/ascend_install.info:/etc/ascend_install.info \
 -v /usr/local/sbin:/usr/local/sbin \
@@ -375,7 +394,7 @@ docker run -itd --shm-size=16g --name ${NAME} \
 --device=/dev/davinci_manager:/dev/davinci_manager \
 --device=/dev/hisi_hdc:/dev/hisi_hdc \
 --entrypoint=bash \
-<image_name>
+"$IMAGE"
 ```
 
   </Tab>

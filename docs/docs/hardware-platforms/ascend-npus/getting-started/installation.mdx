@@ -335,6 +335,12 @@ The container commands in this documentation rely on [Ascend Docker Runtime](htt
 Install it once per host as `root` (skip this step if the host already has it). Download the `.run` package from the [MindCluster documentation](https://www.hiascend.com/document/detail/en/mindcluster/latest/), then:
 
 ```bash Command
+# ============================================================
+# Before running, replace the following placeholders:
+#   <version>: Ascend Docker Runtime package version you downloaded
+#   <arch>: host architecture, e.g. aarch64 or x86_64
+# ============================================================
+
 chmod u+x Ascend-docker-runtime_<version>_linux-<arch>.run
 ./Ascend-docker-runtime_<version>_linux-<arch>.run --install
 systemctl daemon-reload && systemctl restart docker
@@ -431,6 +437,12 @@ weights path — see [How do I provide model weights?](#how-do-i-provide-model-w
   <Tab title="A3 Series">
 
 ```bash Command
+# ============================================================
+# Before running, replace the following placeholders:
+#   <secret>: your Hugging Face access token
+#   <image_name>: SGLang container image
+# ============================================================
+
 # Create a shortcut 'drun' to launch a privileged Docker container
 # ASCEND_VISIBLE_DEVICES=0-15 selects all 16 DIE devices of a full A3 Series node
 alias drun='docker run -it --rm --privileged --network=host --ipc=host --shm-size=16g \
@@ -450,6 +462,12 @@ drun --env "HF_TOKEN=<secret>" \
   <Tab title="950PR/DT Series">
 
 ```bash Command
+# ============================================================
+# Before running, replace the following placeholders:
+#   <secret>: your Hugging Face access token
+#   <image_name>: SGLang container image
+# ============================================================
+
 # Create a shortcut 'drun' to launch a privileged Docker container
 # ASCEND_VISIBLE_DEVICES=0-7 selects all 8 devices of a full 950PR/DT Series node
 # ASCEND_USE_FIA=1 is required on the 950PR/DT Series

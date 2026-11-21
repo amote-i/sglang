@@ -1,0 +1,306 @@
+---
+title: "DeepSeek-V4-Pro"
+metatags:
+  description: "Deploy DeepSeek-V4-Pro model with SGLang on Ascend NPUs, including single-node and multi-node PD mixed mode."
+---
+
+## Introduction
+
+DeepSeek-V4-Pro is a Mixture-of-Experts (MoE) large language model developed by DeepSeek, part of the V4 series. It
+employs hybrid sparse attention (CSA + HCA) and DeepSeekMoE architecture, and supports DSPARK speculative decoding
+with a quantized draft model for accelerated inference.
+
+This document demonstrates the deployment of DeepSeek-V4-Pro on Ascend NPUs using SGLang, covering single-node and
+multi-node PD mixed deployment on the A3 Series, feature configuration, and performance optimization. The multi-node
+deployment follows the validated configuration from the
+[DeepSeek-V4-Pro Best Practice](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/deepseek_v4_pro)
+page.
+
+## Supported features
+
+| Feature                       | Example usage                                                                                 |
+|-------------------------------|-----------------------------------------------------------------------------------------------|
+| Attention Backend             | `--attention-backend ascend`                                                                  |
+| Tensor Parallelism            | `--tp-size 32`                                                                                |
+| Data Parallelism              | `--dp-size 8 \`<br/>`--enable-dp-attention`                                                   |
+| Expert Parallelism            | `--moe-a2a-backend deepep \`<br/>`--deepep-mode auto`                                         |
+| Quantization                  | `--quantization modelslim`                                                                    |
+| NPU Graph                     | enabled by default; disable with `--disable-cuda-graph`;<br/>control range via `--cuda-graph-bs-decode`; e.g., `--cuda-graph-bs-decode 1 2 4 6 8 10 12 14 16` |
+| Speculative Decoding          | `--speculative-algorithm DSPARK \`<br/>`--speculative-draft-model-path /path/to/draft-model-weights \`<br/>`--speculative-draft-model-quantization modelslim \`<br/>`--speculative-num-draft-tokens 6` |
+| Overlap Schedule              | `export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1`                                                  |
+| DP LM Head                    | `--enable-dp-lm-head`                                                                         |
+
+<Note>
+The values in the **Example usage** column are for illustration only. Adjust them according to your hardware, deployment
+mode, and workload. For parameter details, see
+[Parameter Reference](/docs/hardware-platforms/ascend-npus/optimization/parameter_tuning#parameter-reference); for
+recommended configurations for each deployment scenario, see [Best practices](#best-practices).
+</Note>
+
+For feature compatibility and conflict information between features,
+see [Feature Compatibility](/docs/hardware-platforms/ascend-npus/optimization/parameter_tuning#feature-compatibility).
+
+## Prerequisites
+
+### Environment
+
+Before following this tutorial, complete the environment setup in the documents below:
+
+- [Ascend NPU Quickstart](/docs/hardware-platforms/ascend-npus/getting-started/quick_start) — the fastest way to get started.
+  It walks you through launching the official container image, starting the SGLang server, and sending a test request.
+  Recommended if you are new to SGLang on Ascend.
+- [SGLang Installation with NPU Support](/docs/hardware-platforms/ascend-npus/getting-started/installation) — the full installation guide.
+  It covers the component version mapping (CANN, TorchNPU, Triton, kernels, etc.), building from source or from a
+  Dockerfile, and recommended system settings (CPU power scheme, NUMA, swap). Use it when you need to install or customize
+  the environment instead of using the official image.
+
+### Model weights
+
+Before downloading model weights, check the model size to reserve enough disk space.
+For multi-node deployment, download the weights to a shared directory accessible to all nodes.
+
+- [DeepSeek-V4-Pro-w4a8-mtp](https://www.modelscope.cn/models/Eco-Tech/DeepSeek-V4-Pro-w4a8-mtp) (W4A8 quantized version, recommended)
+
+<Info>
+The W4A8 checkpoint can be served from a single A3 Series node (8 cards, 16 dies) with `--tp-size 16`. The validated
+high-performance configuration uses 2 nodes with `--tp-size 32` and DP attention (`--dp-size 8`). Both enable DSPARK
+speculative decoding, which requires a separate draft model directory (`DRAFT_MODEL_PATH` in the launch scripts).
+</Info>
+
+This is the minimum recommended configuration. For optimized configurations,
+see [Best practices](#best-practices), which may require additional cards or nodes.
+
+For the hardware specifications (memory per die and dies per card),
+see [Ascend NPU Reference — Hardware](/docs/hardware-platforms/ascend-npus/reference/glossary#hardware).
+
+## Installation
+
+<Warning>
+Ensure sufficient disk space before pulling images. The Docker image requires at least **30GB** of free space.
+</Warning>
+
+The dependencies required for the NPU runtime environment have been integrated into a Docker image and uploaded to the
+online platform. You can directly pull it.
+
+Both **stable releases** and **daily builds** are available.
+For details, see [Docker image versions](/docs/hardware-platforms/ascend-npus/faq#8-docker-image-versions-stable-release-vs-daily-build).
+
+The command requires [Ascend Docker Runtime](/docs/hardware-platforms/ascend-npus/getting-started/installation#install-ascend-docker-runtime) on the host; it selects all NPUs of the node with `ASCEND_VISIBLE_DEVICES`.
+
+```bash Command
+docker pull swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.2.0-a3-B050
+
+docker run -itd --shm-size=16g --name ${NAME} \
+--privileged=true --net=host \
+-e ASCEND_VISIBLE_DEVICES=0-15 \
+-v /etc/ascend_install.info:/etc/ascend_install.info \
+-v /usr/local/sbin:/usr/local/sbin \
+-v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
+-v /usr/local/Ascend/firmware:/usr/local/Ascend/firmware \
+--entrypoint=bash \
+swr.cn-southwest-2.myhuaweicloud.com/base_image/dockerhub/lmsysorg/sglang:cann9.2.0-a3-B050
+
+docker exec -it ${NAME} bash
+```
+
+<Tip>
+- If the model weights have already been downloaded to a shared directory, use `-v` to mount the model path into the
+  container, for example: `-v /path/to/models:/models`.
+- Replace `${NAME}` with your own container name or remove `--name` to use default name.
+</Tip>
+
+## Online service deployment
+
+### Single-node PD mixed deployment
+
+Single-node deployment completes both prefill and decode within the same node (PD mixed mode), suitable for scenarios
+with limited hardware resources. It runs the `Eco-Tech/DeepSeek-V4-Pro-w4a8-mtp` checkpoint (W4A8) on one A3 Series
+node (8 cards, 16 dies) with `--tp-size 16`, DP attention (`--dp-size 4`), DeepEP in `auto` mode, and DSPARK
+speculative decoding.
+
+<Note>
+The script below adapts the validated 2-node best-practice configuration to a single node and has not been validated
+on real hardware. For the validated configuration and benchmark data, see the
+[DeepSeek-V4-Pro Best Practice](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/deepseek_v4_pro)
+page.
+</Note>
+
+```shell
+# ============================================================
+# Before running, update the following variables:
+#   MODEL_PATH: path to the model weights directory
+#   DRAFT_MODEL_PATH: path to the draft model weights directory
+# ============================================================
+
+MODEL_PATH=/path/to/DeepSeek-V4-Pro-w4a8-mtp
+DRAFT_MODEL_PATH=/path/to/draft-model-weights
+
+echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+sysctl -w vm.swappiness=0
+sysctl -w kernel.numa_balancing=0
+sysctl -w kernel.sched_migration_cost_ns=50000
+
+unset https_proxy
+unset http_proxy
+unset HTTPS_PROXY
+unset HTTP_PROXY
+unset ASCEND_LAUNCH_BLOCKING
+
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+source /usr/local/Ascend/nnal/atb/set_env.sh
+
+export ACL_DEVICE_SYNC_TIMEOUT=60
+export DEEPEP_HCCL_BUFFSIZE=2000
+export DEEPEP_HYBRID_DEPLOYMENT=1
+export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
+export FORCE_DRAFT_MODEL_NON_QUANT=1
+export GLOO_SOCKET_IFNAME=lo
+export HCCL_CONNECT_TIMEOUT=300
+export HCCL_EXEC_TIMEOUT=300
+export HCCL_OP_EXPANSION_MODE=AIV
+export HCCL_SOCKET_IFNAME=lo
+export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
+export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=128
+export SGLANG_DSPARK_ENABLE_MULTI_STREAM=0
+export SGLANG_DSPARK_FAST_SAMPLING=0
+export SGLANG_DSPARK_QUANT_AUDIT=1
+export SGLANG_DSPARK_QUANT_AUDIT_STRICT=0
+export SGLANG_DSV4_FP4_EXPERTS=False
+export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
+export SGLANG_ENABLE_SPEC_V2=1
+export SGLANG_NPU_USE_MULTI_STREAM=1
+export SGLANG_OPT_BF16_FP32_GEMM_ALGO=torch
+export SGLANG_OPT_DEEPGEMM_HC_PRENORM=False
+export SGLANG_OPT_FP8_WO_A_GEMM=False
+export SGLANG_OPT_FUSE_WQA_WKV=0
+export SGLANG_OPT_USE_FUSED_HASH_TOPK=False
+export SGLANG_OPT_USE_OVERLAP_STORE_CACHE=False
+export SGLANG_OPT_USE_TILELANG_MHC_POST=False
+export SGLANG_OPT_USE_TILELANG_MHC_PRE=False
+export SGLANG_RAGGED_VERIFY_MODE=static
+export SGLANG_SET_CPU_AFFINITY=1
+export STREAMS_PER_DEVICE=32
+export TRANSFORMERS_VERBOSITY=error
+export TRITON_CACHE_DIR=/tmp/triton_cache
+
+python3 -m sglang.launch_server \
+    --model-path $MODEL_PATH \
+    --host 127.0.0.1 --port 6688 \
+    --served-model-name dsv4 \
+    --tp-size 16 \
+    --dp-size 4 \
+    --enable-dp-attention \
+    --enable-dp-lm-head \
+    --trust-remote-code \
+    --attention-backend ascend \
+    --device npu \
+    --watchdog-timeout 9000 \
+    --max-running-requests 32 \
+    --mem-fraction-static 0.8 \
+    --quantization modelslim \
+    --chunked-prefill-size 16384 \
+    --prefill-decode-interval 2 \
+    --enable-prefill-delayer \
+    --kv-cache-dtype auto \
+    --moe-dense-tp-size 1 \
+    --cuda-graph-bs-decode 1 2 4 6 8 10 12 14 16 \
+    --load-balance-method round_robin \
+    --moe-a2a-backend deepep \
+    --deepep-mode auto \
+    --enable-metrics \
+    --enable-cache-report \
+    --speculative-algorithm DSPARK \
+    --speculative-draft-model-path $DRAFT_MODEL_PATH \
+    --speculative-draft-model-quantization modelslim \
+    --speculative-draft-attention-backend ascend \
+    --speculative-num-draft-tokens 6 \
+    --speculative-dspark-block-size 5
+```
+
+### Multi-node PD mixed deployment
+
+Multi-node deployment distributes the model across A3 Series nodes using tensor parallelism while keeping prefill and
+decode on the same nodes (PD mixed mode), suitable for high-concurrency scenarios. This scenario is already covered in
+the best practice. For the complete, validated deployment commands (2 nodes, W4A8, TP32 with DP attention and DSPARK
+speculative decoding) and benchmark data, see
+[DeepSeek-V4-Pro Best Practice — PD Mixed On A3 Series](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/deepseek_v4_pro#multi-node-pd-mixed).
+
+## Functional verification
+
+The launch command runs the server in the foreground. Loading the weights and capturing graphs takes a few minutes.
+Once the logs print `The server is fired up and ready to roll!`, open another terminal (or another
+`docker exec -it ${NAME} bash` session) and invoke the model:
+
+```shell
+curl http://127.0.0.1:6688/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{"role": "user", "content": "What is the capital of France?"}]
+  }'
+```
+
+Expected result: an HTTP 200 response with the generated text containing "Paris".
+
+<Tip>
+The commands on this page assume the default service address `127.0.0.1:6688` from the launch command above. If you
+started the service with a different `--host` or `--port`, replace the address in these commands accordingly.
+</Tip>
+
+For more testing examples (Health Check, Generate, Chat Completions, and port usage guidance),
+see [Testing the Service](/docs/hardware-platforms/ascend-npus/getting-started/installation#testing-the-service).
+
+## Accuracy evaluation
+
+A quick accuracy check on GSM8K with `sgl-eval`:
+
+```shell
+# pip install sgl-eval
+
+sgl-eval run gsm8k \
+  --base-url http://127.0.0.1:6688/v1 \
+  --num-examples 10 --max-tokens 2048
+```
+
+If the terminal reports `sgl-eval: command not found`, run `pip install sgl-eval` first and retry.
+
+For accuracy evaluation methods and datasets, see [Accuracy Evaluation on Ascend NPU](/docs/hardware-platforms/ascend-npus/evaluation/accuracy_evaluation).
+
+## Performance
+
+A quick performance benchmark with random input/output lengths:
+
+```shell
+python -m sglang.benchmark.serving \
+    --dataset-name random \
+    --backend sglang \
+    --host 127.0.0.1 \
+    --port 6688 \
+    --max-concurrency 64 \
+    --num-prompts 64 \
+    --random-input-len 1000 \
+    --random-output-len 100 \
+    --random-range-ratio 1 \
+    --seed 1
+```
+
+The best practice measures low-latency performance with the `generated-shared-prefix` dataset (128k input + 1k output,
+90% prefix cache hit rate); for the exact benchmark command and results, see
+[DeepSeek-V4-Pro Best Practice](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/deepseek_v4_pro#multi-node-pd-mixed).
+
+For performance data and benchmark commands, see [Performance Testing on Ascend NPU](/docs/hardware-platforms/ascend-npus/evaluation/performance_testing).
+
+## Best practices
+
+### Best practice configuration reference
+
+For complete optimal configurations with deployment scripts and benchmark commands, see the
+[DeepSeek-V4-Pro Best Practice](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/deepseek_v4_pro) page.
+
+## Performance tuning
+
+For the full list of supported features, see [Supported features](#supported-features). For detailed optimization
+guidance, see [Optimization on Ascend NPU](/docs/hardware-platforms/ascend-npus/optimization/parameter_tuning).
+
+## FAQ
+
+For common environment, installation, and general parameter issues, please refer to the [Ascend NPU FAQ](/docs/hardware-platforms/ascend-npus/faq).

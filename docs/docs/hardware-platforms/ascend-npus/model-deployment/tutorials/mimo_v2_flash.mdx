@@ -217,11 +217,6 @@ again. If you do not want to change the server's Python environment, install it 
 [How to install sgl-eval in an isolated venv](/docs/hardware-platforms/ascend-npus/faq#10-how-to-install-sgl-eval-in-an-isolated-venv)
 in the FAQ.
 
-<Note>
-This is a 10-example connectivity check, not a comparable accuracy score. `sgl-eval` applies its own generation defaults and GSM8K runs with thinking off by default.
-For reasoning models, pass the model's thinking setting explicitly (`--thinking` for DeepSeek/Kimi style, `--chat-template-kwarg enable_thinking=true` for Qwen3/GLM style); skip it when the model forces thinking on. See the Accuracy Evaluation on Ascend NPU page for details.
-</Note>
-
 For accuracy evaluation methods and datasets, see [Accuracy Evaluation on Ascend NPU](/docs/hardware-platforms/ascend-npus/evaluation/accuracy_evaluation).
 
 ## Performance

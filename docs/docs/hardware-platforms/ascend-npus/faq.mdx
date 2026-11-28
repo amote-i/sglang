@@ -405,3 +405,27 @@ docker run -itd --shm-size=16g --name "$NAME" \
 `-e ASCEND_USE_FIA=1` in the 950PR/DT Series command above is required (see the examples in the
 [installation guide](/docs/hardware-platforms/ascend-npus/getting-started/installation#create-docker-container)).
 </Note>
+
+## 10. How to install sgl-eval in an isolated venv
+
+`pip install sgl-eval` installs into the active Python environment, which is usually the SGLang runtime environment
+inside the container. To keep that environment unchanged, install the evaluation client in a dedicated virtual
+environment. `sgl-eval` only sends HTTP requests to the service, so it does not need SGLang or torch_npu in the same
+environment.
+
+```shell Command
+python3 -m venv .venv-sgl-eval
+source .venv-sgl-eval/bin/activate
+pip install sgl-eval==0.1.3
+```
+
+Run the evaluation from the same shell, for example:
+
+```shell Command
+sgl-eval run gsm8k \
+  --base-url http://127.0.0.1:6688/v1 \
+  --num-examples 10 --max-tokens 16384
+```
+
+The venv must be activated again in each new shell (`source .venv-sgl-eval/bin/activate`); run `deactivate` to leave
+it. To remove the venv, delete the `.venv-sgl-eval` directory.

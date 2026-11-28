@@ -205,15 +205,15 @@ see [Testing the Service](/docs/hardware-platforms/ascend-npus/getting-started/i
 A quick accuracy check on GSM8K with `sgl-eval`:
 
 ```shell
-# Install sgl-eval in an isolated venv (not the server environment)
-python3 -m venv .venv-sgl-eval
-source .venv-sgl-eval/bin/activate
-pip install sgl-eval==0.1.3
-
 sgl-eval run gsm8k \
   --base-url http://127.0.0.1:6688/v1 \
   --num-examples 10 --max-tokens 16384
 ```
+
+If the shell reports `sgl-eval: command not found`, install it with `pip install sgl-eval==0.1.3` and run the command
+again. If you do not want to change the server's Python environment, install it in an isolated venv instead; see
+[How to install sgl-eval in an isolated venv](/docs/hardware-platforms/ascend-npus/faq#10-how-to-install-sgl-eval-in-an-isolated-venv)
+in the FAQ.
 
 <Note>
 This is a 10-example connectivity check, not a comparable accuracy score. `sgl-eval` applies its own generation defaults and GSM8K runs with thinking off by default.

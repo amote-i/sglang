@@ -135,8 +135,54 @@ docker exec -it "$NAME" bash
 ### Single-node online deployment
 
 Single-node deployment completes both prefill and decode within the same node (PD mixed mode), suitable for scenarios
-with limited hardware resources. This scenario is already covered in the best practice. For the complete, optimized
-deployment commands and benchmark data, see
+with limited hardware resources. The command below deploys `Kimi-K2.6-w4a8` on 8 A3 Series cards (16 dies) with TP16.
+
+```shell
+# ============================================================
+# Before running, update the following variables:
+#   MODEL_PATH: path to the model weights directory
+#   DRAFT_MODEL_PATH: path to the draft model weights directory
+# ============================================================
+
+MODEL_PATH=/path/to/Kimi-K2.6-w4a8
+DRAFT_MODEL_PATH=/path/to/kimi-k2.6-eagle3
+
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+source /usr/local/Ascend/nnal/atb/set_env.sh
+
+export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
+export DEEPEP_HCCL_BUFFSIZE=1200
+export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=96
+export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
+
+python3 -m sglang.launch_server \
+    --model-path $MODEL_PATH \
+    --host 127.0.0.1 --port 6688 \
+    --trust-remote-code \
+    --attention-backend ascend \
+    --device npu \
+    --quantization modelslim \
+    --dtype bfloat16 \
+    --tp-size 16 \
+    --mem-fraction-static 0.865 \
+    --chunked-prefill-size 32768 \
+    --enable-multimodal \
+    --mm-attention-backend ascend_attn \
+    --sampling-backend ascend \
+    --enable-dp-attention --dp-size 16 \
+    --moe-a2a-backend deepep \
+    --deepep-mode auto \
+    --speculative-algorithm EAGLE3 \
+    --speculative-draft-model-path $DRAFT_MODEL_PATH \
+    --speculative-num-steps 4 \
+    --speculative-eagle-topk 1 \
+    --speculative-num-draft-tokens 5 \
+    --speculative-draft-model-quantization unquant \
+    --reasoning-parser kimi_k2 \
+    --tool-call-parser kimi_k2
+```
+
+For the complete, optimized deployment commands and benchmark data, see
 [Kimi-K2.6 Best Practice — PD Mixed On A3 Series](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/kimi_k2_6#single-node-pd-mixed).
 
 ### Multi-node online deployment
@@ -156,65 +202,103 @@ deployment commands and benchmark data, see
 
 ## Functional verification
 
-After the service is started, you can invoke the model by sending a prompt:
+The launch command runs the server in the foreground. Loading the weights and capturing graphs takes a few minutes.
+Once the logs print `The server is fired up and ready to roll!`, open another terminal (or another
+`docker exec -it ${NAME} bash` session) and invoke the model:
 
 ```shell
-# ============================================================
-# Before running, update the following variables:
-#   HOST: the server host address (e.g., localhost)
-#   PORT: the server port number (e.g., 6689)
-# ============================================================
-
-curl http://${HOST}:${PORT}/generate \
-    -H "Content-Type: application/json" \
-    -d '{
-        "text": "What is the capital of France?",
-        "sampling_params": {
-            "max_new_tokens": 64,
-            "temperature": 0
-        }
-    }'
+curl http://127.0.0.1:6688/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{"role": "user", "content": "What is the capital of France?"}]
+  }'
 ```
 
 Expected result: an HTTP 200 response with the generated text containing "Paris".
 
-For multimodal requests (text + image). The example image URL is fetched by the server at request time, so the server
-needs internet access; otherwise, replace it with a local image path or any URL reachable from the server:
+<Tip>
+The commands on this page assume the default service address `127.0.0.1:6688` from the single-node launch command above.
+If you start the service with a different `--host` or `--port` (for example, in the multi-node deployment modes),
+replace the address in these commands accordingly.
+</Tip>
+
+The following example sends a text + image request.
+
+<Note>
+The server downloads the image referenced by `image_url` itself when the request arrives, so the machine running the
+service must be able to reach that URL. If it has no internet access, replace the URL with a local image path or any
+URL reachable from the server.
+</Note>
 
 ```shell
-# ============================================================
-# Before running, update the following variables:
-#   HOST: the server host address (e.g., localhost)
-#   PORT: the server port number (e.g., 6689)
-# ============================================================
-
-curl http://${HOST}:${PORT}/v1/chat/completions \
-    -H "Content-Type: application/json" \
-    -d '{
-        "model": "Kimi-K2.6-w4a8",
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "image_url", "image_url": {"url": "https://raw.githubusercontent.com/sgl-project/sglang/main/examples/assets/example_image.png"}},
-                    {"type": "text", "text": "Describe this image."}
-                ]
-            }
+curl http://127.0.0.1:6688/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "Kimi-K2.6-w4a8",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {"type": "image_url", "image_url": {"url": "https://raw.githubusercontent.com/sgl-project/sglang/main/examples/assets/example_image.png"}},
+          {"type": "text", "text": "Describe this image."}
         ]
-    }'
+      }
+    ]
+  }'
 ```
 
 Expected result: an HTTP 200 response with a description of the image.
 
-Once the server prints `The server is fired up and ready to roll!` in the logs, it is ready to accept requests. For more
-testing examples (Health Check, Generate, Chat Completions, and port usage guidance),
+For more testing examples (Health Check, Generate, Chat Completions, and port usage guidance),
 see [Testing the Service](/docs/hardware-platforms/ascend-npus/getting-started/installation#testing-the-service).
 
 ## Accuracy evaluation
 
+A quick accuracy check on GSM8K with `sgl-eval`:
+
+```shell
+# Install sgl-eval in an isolated venv (not the server environment)
+python3 -m venv .venv-sgl-eval
+source .venv-sgl-eval/bin/activate
+pip install sgl-eval==0.1.3
+
+sgl-eval run gsm8k \
+  --base-url http://127.0.0.1:6688/v1 \
+  --num-examples 10 --max-tokens 16384
+```
+
+<Note>
+This is a 10-example connectivity check, not a comparable accuracy score. `sgl-eval` applies its own generation defaults and GSM8K runs with thinking off by default.
+For reasoning models, pass the model's thinking setting explicitly (`--thinking` for DeepSeek/Kimi style, `--chat-template-kwarg enable_thinking=true` for Qwen3/GLM style); skip it when the model forces thinking on. See the Accuracy Evaluation on Ascend NPU page for details.
+</Note>
+
 For accuracy evaluation methods and datasets, see [Accuracy Evaluation on Ascend NPU](/docs/hardware-platforms/ascend-npus/evaluation/accuracy_evaluation).
 
 ## Performance
+
+The service is multimodal (`--enable-multimodal`), so the benchmark uses the multimodal image dataset:
+
+```shell
+# ============================================================
+# Before running, update the following variables:
+#   MODEL_PATH: local path to the model weights (tokenizer source for the benchmark)
+# ============================================================
+
+MODEL_PATH=/path/to/Kimi-K2.6-w4a8
+
+python -m sglang.benchmark.serving \
+    --dataset-name image \
+    --backend sglang-oai-chat \
+    --model "${MODEL_PATH}" \
+    --host 127.0.0.1 \
+    --port 6688 \
+    --image-count 2 \
+    --image-resolution 720p \
+    --random-input-len 128 \
+    --random-output-len 1024 \
+    --max-concurrency 8 \
+    --num-prompts 8
+```
 
 For performance data and benchmark commands, see [Performance Testing on Ascend NPU](/docs/hardware-platforms/ascend-npus/evaluation/performance_testing).
 

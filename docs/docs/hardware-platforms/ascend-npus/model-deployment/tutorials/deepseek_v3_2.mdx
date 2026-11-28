@@ -1,7 +1,7 @@
 ---
 title: "DeepSeek-V3.2"
 metatags:
-  description: "Deploy DeepSeek-V3.2 model with SGLang on Ascend NPUs, including multi-node PD disaggregation mode."
+  description: "Deploy DeepSeek-V3.2 model with SGLang on Ascend NPUs, including single-node and multi-node PD disaggregation modes."
 ---
 
 ## Introduction
@@ -12,8 +12,8 @@ multi-token prediction (MTP) for speculative decoding. DeepSeek-V3.2 introduces 
 mechanism, a fine-grained sparse attention mechanism powered by a lightning indexer, enabling significant efficiency
 improvements in long-context scenarios.
 
-This document demonstrates the deployment of DeepSeek-V3.2 on Ascend NPUs using SGLang, including multi-node PD
-disaggregation mode, feature configuration, and performance optimization.
+This document demonstrates the deployment of DeepSeek-V3.2 on Ascend NPUs using SGLang, including single-node
+deployment, multi-node PD disaggregation mode, feature configuration, and performance optimization.
 
 This document is validated and written based on **SGLang v0.5.18**. The current model (DeepSeek-V3.2) is fully supported
 in this version. It is recommended to use exactly v0.5.18 (the `v0.5.18-cann9.0.0-a3` image); later versions are not
@@ -126,6 +126,55 @@ docker exec -it "$NAME" bash
 
 ## Online service deployment
 
+### Single-node online deployment
+
+Single-node deployment completes both prefill and decode within the same node (PD mixed mode), suitable for scenarios
+with limited hardware resources. The command below deploys `DeepSeek-V3.2-W8A8` across all eight A3 Series cards
+(16 dies) with TP16 and DP attention.
+
+```shell
+# ============================================================
+# Before running, update the following variables:
+#   MODEL_PATH: path to the model weights directory
+# ============================================================
+
+MODEL_PATH=/path/to/DeepSeek-V3.2-W8A8
+
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+source /usr/local/Ascend/nnal/atb/set_env.sh
+
+export DEEP_NORMAL_MODE_USE_INT8_QUANT=1
+export DEEPEP_HCCL_BUFFSIZE=1200
+export SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=8
+export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
+
+python3 -m sglang.launch_server \
+    --model-path $MODEL_PATH \
+    --host 127.0.0.1 --port 6688 \
+    --trust-remote-code \
+    --attention-backend ascend \
+    --device npu \
+    --tp-size 16 \
+    --ep-size 16 \
+    --quantization modelslim \
+    --chunked-prefill-size 16384 \
+    --moe-a2a-backend deepep \
+    --deepep-mode auto \
+    --moe-dense-tp-size 1 \
+    --enable-dp-attention --dp-size 8 \
+    --enable-dp-lm-head \
+    --speculative-algorithm NEXTN \
+    --speculative-num-steps 3 \
+    --speculative-eagle-topk 1 \
+    --speculative-num-draft-tokens 4 \
+    --reasoning-parser deepseek-v3 \
+    --tool-call-parser deepseekv32 \
+    --mem-fraction-static 0.8
+```
+
+For complete configurations and benchmark data, see the
+[DeepSeek-V3.2 Best Practice](/docs/hardware-platforms/ascend-npus/model-deployment/best-practices/deepseek_v3_2) page.
+
 ### Multi-node PD disaggregation deployment
 
 PD disaggregation splits the prefill and decode stages onto separate nodes, reducing interference and improving
@@ -135,37 +184,72 @@ deployment commands and benchmark data, see
 
 ## Functional verification
 
-After the service is started, you can invoke the model by sending a prompt:
+The launch command runs the server in the foreground. Loading the weights and capturing graphs takes a few minutes.
+Once the logs print `The server is fired up and ready to roll!`, open another terminal (or another
+`docker exec -it ${NAME} bash` session) and invoke the model:
 
 ```shell
-# ============================================================
-# Before running, update the following variables:
-#   HOST: the server host address (e.g., localhost)
-#   PORT: the server port number (e.g., 6689)
-# ============================================================
-
-curl http://${HOST}:${PORT}/generate \
-    -H "Content-Type: application/json" \
-    -d '{
-        "text": "What is the capital of France?",
-        "sampling_params": {
-            "max_new_tokens": 64,
-            "temperature": 0
-        }
-    }'
+curl http://127.0.0.1:6688/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{"role": "user", "content": "What is the capital of France?"}]
+  }'
 ```
 
 Expected result: an HTTP 200 response with the generated text containing "Paris".
 
-Once the server prints `The server is fired up and ready to roll!` in the logs, it is ready to accept requests. For more
-testing examples (Health Check, Generate, Chat Completions, and port usage guidance),
+<Tip>
+The commands on this page assume the default service address `127.0.0.1:6688` of the single-node deployment above. If you
+started the service with a different `--host` or `--port` (for example, the multi-node PD disaggregation deployment),
+replace the address in these commands accordingly.
+</Tip>
+
+For more testing examples (Health Check, Generate, Chat Completions, and port usage guidance),
 see [Testing the Service](/docs/hardware-platforms/ascend-npus/getting-started/installation#testing-the-service).
 
 ## Accuracy evaluation
 
+A quick accuracy check on GSM8K with `sgl-eval`:
+
+```shell
+# Install sgl-eval in an isolated venv (not the server environment)
+python3 -m venv .venv-sgl-eval
+source .venv-sgl-eval/bin/activate
+pip install sgl-eval==0.1.3
+
+sgl-eval run gsm8k \
+  --base-url http://127.0.0.1:6688/v1 \
+  --num-examples 10 --max-tokens 16384
+```
+
+<Note>
+This is a 10-example connectivity check, not a comparable accuracy score. `sgl-eval` applies its own generation defaults and GSM8K runs with thinking off by default.
+For reasoning models, pass the model's thinking setting explicitly (`--thinking` for DeepSeek/Kimi style, `--chat-template-kwarg enable_thinking=true` for Qwen3/GLM style); skip it when the model forces thinking on. See the Accuracy Evaluation on Ascend NPU page for details.
+</Note>
+
 For accuracy evaluation methods and datasets, see [Accuracy Evaluation on Ascend NPU](/docs/hardware-platforms/ascend-npus/evaluation/accuracy_evaluation).
 
 ## Performance
+
+A quick performance benchmark with random input/output lengths:
+
+```shell
+python -m sglang.benchmark.serving \
+    --dataset-name random \
+    --backend sglang \
+    --host 127.0.0.1 \
+    --port 6688 \
+    --max-concurrency 64 \
+    --num-prompts 64 \
+    --random-input-len 1000 \
+    --random-output-len 100 \
+    --random-range-ratio 1 \
+    --seed 1
+```
+
+<Note>
+`--backend sglang` targets `/generate`, so this measures raw text throughput without the chat template or reasoning parser. To benchmark the `/v1/chat/completions` path verified above, use `--backend sglang-oai-chat`.
+</Note>
 
 For performance data and benchmark commands, see [Performance Testing on Ascend NPU](/docs/hardware-platforms/ascend-npus/evaluation/performance_testing).
 
